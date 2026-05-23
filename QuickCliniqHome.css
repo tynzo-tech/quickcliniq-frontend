@@ -1,0 +1,234 @@
+﻿.quickcliniq-home {
+  min-height: 100vh;
+  background: #f8fafc;
+  color: #111827;
+}
+
+.quickcliniq-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 1.25rem 2rem;
+  gap: 1rem;
+}
+
+.quickcliniq-logo {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  border-radius: 0.75rem;
+  background: #14b8a6;
+  color: #ffffff;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.quickcliniq-primary-btn,
+.quickcliniq-secondary-btn,
+.quickcliniq-cta-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  border-radius: 999px;
+  border: none;
+  padding: 1rem 1.5rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.quickcliniq-primary-btn {
+  background: #0f766e;
+  color: #fff;
+}
+
+.quickcliniq-primary-btn:hover,
+.quickcliniq-cta-btn:hover {
+  opacity: 0.92;
+}
+
+.quickcliniq-secondary-btn {
+  background: #ffffff;
+  color: #111827;
+  border: 1px solid #d1d5db;
+}
+
+.quickcliniq-secondary-btn:hover {
+  background: #f8fafc;
+}
+
+.quickcliniq-mini-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 1.5rem;
+  padding: 1.25rem;
+  min-height: 8rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.quickcliniq-dashboard {
+  background: #ffffff;
+  border-radius: 2rem;
+  padding: 2rem;
+  box-shadow: 0 40px 90px rgba(15, 23, 42, 0.08);
+}
+
+.quickcliniq-stat-card {
+  background: #f8fafc;
+  border-radius: 1.75rem;
+  padding: 1.5rem;
+}
+
+.quickcliniq-stat-card.teal {
+  background: #ecfeff;
+}
+
+.quickcliniq-activity {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f8fafc;
+  border-radius: 1.5rem;
+  padding: 1rem 1.25rem;
+}
+
+.quickcliniq-floating-card {
+  position: absolute;
+  right: -1rem;
+  width: 12rem;
+  background: #ffffff;
+  border-radius: 1.75rem;
+  padding: 1rem;
+  box-shadow: 0 30px 60px rgba(15, 23, 42, 0.12);
+}
+
+.quickcliniq-floating-card.top {
+  top: 2rem;
+}
+
+.quickcliniq-floating-card.bottom {
+  bottom: 2rem;
+}
+
+.quickcliniq-features-section {
+  padding: 6rem 2rem;
+}
+
+.quickcliniq-feature-card {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 1.75rem;
+  padding: 2rem;
+  min-height: 14rem;
+}
+
+.quickcliniq-feature-icon {
+  width: 3rem;
+  height: 3rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.75rem;
+  background: #ecfdf5;
+  color: #0f766e;
+  margin-bottom: 1.25rem;
+}
+
+.quickcliniq-about {
+  padding: 6rem 2rem;
+}
+
+.quickcliniq-cta {
+  padding: 5rem 2rem;
+  background: linear-gradient(130deg, #0f766e, #0d9488);
+}
+
+.quickcliniq-cta-card {
+  background: rgba(15, 23, 42, 0.95);
+  border-radius: 2rem;
+  padding: 3rem;
+  text-align: center;
+  color: #fff;
+}
+
+.quickcliniq-cta-btn {
+  background: #ffffff;
+  color: #0f172a;
+}
+
+.quickcliniq-footer {
+  padding: 4rem 2rem;
+  background: #111827;
+  color: #e2e8f0;
+}
+
+.quickcliniq-footer__inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 2rem;
+}
+
+.quickcliniq-footer__brand {
+  font-size: 1.5rem;
+  font-weight: 800;
+  margin-bottom: 0.75rem;
+}
+
+.quickcliniq-footer__title {
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: 0.75rem;
+}
+
+.quickcliniq-footer__bottom {
+  margin-top: 3rem;
+  text-align: center;
+  color: #94a3b8;
+}
+
+@media (max-width: 1024px) {
+  .quickcliniq-dashboard {
+    padding: 1.5rem;
+  }
+
+  .quickcliniq-floating-card {
+    position: static;
+    width: 100%;
+    margin-top: 1.25rem;
+  }
+}
+
+@media (max-width: 768px) {
+  .quickcliniq-nav {
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .quickcliniq-hero {
+    padding-top: 3rem;
+  }
+
+  .quickcliniq-feature-card {
+    min-height: auto;
+  }
+}
+
+@media (max-width: 640px) {
+  .quickcliniq-nav {
+    padding: 1rem 1rem;
+  }
+
+  .quickcliniq-hero {
+    padding: 3rem 1rem;
+  }
+
+  .quickcliniq-cta {
+    padding: 3rem 1rem;
+  }
+}

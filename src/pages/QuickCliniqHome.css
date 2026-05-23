@@ -1,0 +1,43 @@
+.quickcliniq-home {
+  background:
+    radial-gradient(circle at 12% 6%, rgba(20, 184, 166, 0.12), transparent 30rem),
+    radial-gradient(circle at 88% 18%, rgba(8, 145, 178, 0.10), transparent 28rem),
+    linear-gradient(180deg, #f8fafc 0%, #ffffff 46%, #f8fafc 100%);
+}
+
+.quickcliniq-float {
+  animation: quickcliniq-float 7s ease-in-out infinite;
+}
+
+.quickcliniq-logo-lockup {
+  display: block;
+  width: clamp(13rem, 22vw, 18rem);
+  height: 4.5rem;
+  object-fit: cover;
+  object-position: center 58%;
+  border-radius: 0.5rem;
+}
+
+@media (max-width: 640px) {
+  .quickcliniq-logo-lockup {
+    width: 11.5rem;
+    height: 3.75rem;
+  }
+}
+
+@keyframes quickcliniq-float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quickcliniq-float {
+    animation: none;
+  }
+}
