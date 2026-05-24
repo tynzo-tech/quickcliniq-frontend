@@ -6,7 +6,7 @@ import {
 } from "react-router-dom";
 
 import QuickCliniqHome from "./pages/QuickCliniqHome";
-import Login from "./pages/login";
+import Login from "./pages/Login";
 import Privacy from "./pages/Privacy";
 import VerifyOtp from "./pages/VerifyOtp";
 
