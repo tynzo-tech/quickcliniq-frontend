@@ -11,6 +11,11 @@ from "../../components/Layout";
 
 export default function Appointments() {
 
+  const clinicId =
+    localStorage.getItem(
+      "clinic_id"
+    );
+
   // ===================================================
   // STATES
   // ===================================================
@@ -48,7 +53,13 @@ export default function Appointments() {
       const response =
         await axios.get(
 
-          `${import.meta.env.VITE_API_URL}/appointments`
+          `${import.meta.env.VITE_API_URL}/appointments`,
+
+          {
+            params: {
+              clinic_id: clinicId
+            }
+          }
         );
 
       setAppointments(
@@ -60,7 +71,8 @@ export default function Appointments() {
       console.log(error);
 
       setError(
-        "Failed to load appointments"
+        error.response?.data?.detail ||
+          "Failed to load appointments"
       );
 
     } finally {

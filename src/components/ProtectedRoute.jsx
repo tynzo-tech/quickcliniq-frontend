@@ -14,7 +14,29 @@ export default function ProtectedRoute({
       "is_logged_in"
     );
 
-  if (!isLoggedIn) {
+  let clinic = null;
+
+  try {
+
+    clinic = JSON.parse(
+      localStorage.getItem(
+        "clinic"
+      )
+    );
+
+  } catch {
+
+    clinic = null;
+  }
+
+  if (
+    !isLoggedIn
+    || !clinic?.id
+  ) {
+
+    localStorage.removeItem(
+      "is_logged_in"
+    );
 
     return (
 

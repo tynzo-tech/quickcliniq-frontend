@@ -74,7 +74,8 @@ export default function Patients() {
       console.log(error);
 
       setError(
-        "Failed to load patients"
+        error.response?.data?.detail ||
+          "Failed to load patients"
       );
 
     } finally {

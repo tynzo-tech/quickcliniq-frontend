@@ -1,8 +1,6 @@
-import { useState, useEffect }
-from "react";
-
-import { useNavigate }
-from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Eye, EyeOff, Loader2, LockKeyhole, UserRound } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 
 export default function Login() {
@@ -10,27 +8,30 @@ export default function Login() {
   const navigate =
     useNavigate();
 
-  const [phoneNumber, setPhoneNumber] =
-    useState("");
+  const [username, setUsername] =
+    useState("sandhya");
 
   const [password, setPassword] =
     useState("");
 
+  const [showPassword, setShowPassword] =
+    useState(false);
+
   const [message, setMessage] =
     useState("");
+
+  const [messageType, setMessageType] =
+    useState("info");
 
   const [loading, setLoading] =
     useState(false);
 
-
-  // ===================================================
-  // AUTO REDIRECT
-  // ===================================================
+  const [forgotLoading, setForgotLoading] =
+    useState(false);
 
   useEffect(() => {
 
     const loggedIn =
-
       localStorage.getItem(
         "is_logged_in"
       );
@@ -40,106 +41,186 @@ export default function Login() {
       navigate("/slots");
     }
 
-  }, []);
+  }, [navigate]);
 
 
-  // ===================================================
-  // LOGIN
-  // ===================================================
+  const showFormMessage = (
+    nextMessage,
+    nextType = "info"
+  ) => {
+
+    setMessage(nextMessage);
+    setMessageType(nextType);
+  };
+
+
+  const parseResponse =
+  async (response) => {
+
+    try {
+
+      return await response.json();
+
+    } catch {
+
+      return {};
+    }
+  };
+
 
   const handleLogin =
-  async () => {
+  async (event) => {
 
-    if (!phoneNumber) {
+    event.preventDefault();
 
-      setMessage(
-        "Enter phone number"
+    const trimmedUsername = username.trim();
+    const trimmedPassword = password.trim();
+
+    if (!trimmedUsername) {
+
+      showFormMessage(
+        "Enter your username.",
+        "error"
       );
 
       return;
     }
 
-    if (!password) {
+    if (!trimmedPassword) {
 
-      setMessage(
-        "Enter password"
+      showFormMessage(
+        "Enter your password.",
+        "error"
       );
 
       return;
     }
 
     setLoading(true);
-
-    setMessage("");
+    showFormMessage("");
 
     try {
 
       const response =
         await fetch(
-
           `${import.meta.env.VITE_API_URL}/login`,
-
           {
-
             method: "POST",
-
             headers: {
-
               "Content-Type":
                 "application/json",
             },
-
             body: JSON.stringify({
-
-              phone_number:
-                phoneNumber,
-
+              username:
+                trimmedUsername,
               password:
-                password,
+                trimmedPassword,
             }),
           }
         );
 
       const data =
-        await response.json();
+        await parseResponse(response);
 
-      if (data.success) {
+      if (!response.ok || !data.success) {
 
-        localStorage.setItem(
-
-          "phone_number",
-
-          phoneNumber
+        showFormMessage(
+          data.detail ||
+            data.message ||
+            "Login failed.",
+          "error"
         );
 
-        setMessage(
-          "OTP sent successfully"
+        return;
+      }
+
+      localStorage.setItem(
+        "login_identifier",
+        trimmedUsername
+      );
+
+      if (data.clinic_phone_number) {
+
+        localStorage.setItem(
+          "phone_number",
+          data.clinic_phone_number
+        );
+      }
+
+      if (data.clinic) {
+
+        localStorage.setItem(
+          "clinic",
+          JSON.stringify(
+            data.clinic
+          )
+        );
+
+        localStorage.setItem(
+          "clinic_id",
+          data.clinic.id
+        );
+
+        localStorage.setItem(
+          "is_logged_in",
+          "true"
+        );
+
+        showFormMessage(
+          "Login successful.",
+          "success"
         );
 
         setTimeout(() => {
 
           navigate(
-            "/verify_otp"
+            "/slots"
           );
 
-        }, 1000);
+        }, 500);
 
-      } else {
-
-        setMessage(
-
-          data.message ||
-
-          "Login failed"
-        );
+        return;
       }
+
+      localStorage.setItem(
+        "clinic",
+        JSON.stringify({
+          id: data.clinic_id,
+          name: data.clinic_name,
+          phone_number: data.clinic_phone_number
+        })
+      );
+
+      localStorage.setItem(
+        "clinic_id",
+        data.clinic_id
+      );
+
+      localStorage.setItem(
+        "is_logged_in",
+        "true"
+      );
+
+      showFormMessage(
+        "Login successful.",
+        "success"
+      );
+
+      setTimeout(() => {
+
+        navigate(
+          "/slots"
+        );
+
+      }, 500);
 
     } catch (error) {
 
       console.log(error);
 
-      setMessage(
-        "Server connection failed"
+      showFormMessage(
+        "Could not connect to the server.",
+        "error"
       );
 
     } finally {
@@ -149,127 +230,211 @@ export default function Login() {
   };
 
 
+  const handleForgotPassword =
+  async () => {
+
+    const trimmedUsername = username.trim();
+
+    if (!trimmedUsername) {
+
+      showFormMessage(
+        "Enter your username first.",
+        "error"
+      );
+
+      return;
+    }
+
+    setForgotLoading(true);
+    showFormMessage("");
+
+    try {
+
+      const response =
+        await fetch(
+          `${import.meta.env.VITE_API_URL}/forgot-password`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify({
+              username:
+                trimmedUsername,
+            }),
+          }
+        );
+
+      const data =
+        await parseResponse(response);
+
+      if (!response.ok || !data.success) {
+
+        showFormMessage(
+          data.detail ||
+            data.message ||
+            "Could not send password help.",
+          "error"
+        );
+
+        return;
+      }
+
+      showFormMessage(
+        data.message || "Password help sent on WhatsApp.",
+        "success"
+      );
+
+    } catch (error) {
+
+      console.log(error);
+
+      showFormMessage(
+        "Could not connect to the server.",
+        "error"
+      );
+
+    } finally {
+
+      setForgotLoading(false);
+    }
+  };
+
+
   return (
 
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
-
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8">
-
-        {/* HEADER */}
-
-        <div className="flex items-center gap-4 mb-8">
-
-          <div className="w-14 h-14 rounded-2xl bg-black text-white flex items-center justify-center text-2xl font-bold">
-
-            Q
-
-          </div>
-
+    <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-950">
+      <section className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-md items-center">
+        <form
+          onSubmit={handleLogin}
+          className="w-full rounded-lg border border-slate-200 bg-white p-6 shadow-xl shadow-slate-950/5 sm:p-8"
+        >
           <div>
+            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-slate-950 text-base font-bold text-white">
+              Q
+            </div>
 
-            <h1 className="text-3xl font-bold text-gray-900">
-
-              QuickCliniq
-
+            <h1 className="mt-6 text-2xl font-semibold tracking-tight text-slate-950">
+              Sign in
             </h1>
 
-            <p className="text-gray-500 text-sm">
-
-              Clinic Login
-
+            <p className="mt-2 text-sm text-slate-500">
+              QuickCliniq doctor workspace
             </p>
-
           </div>
 
-        </div>
+          <label className="mt-7 block">
+              <span className="text-sm font-medium text-slate-700">
+              Username
+            </span>
+            <div className="mt-2 flex items-center gap-3 rounded-lg border border-slate-300 bg-white px-3 focus-within:border-teal-600 focus-within:ring-4 focus-within:ring-teal-100">
+              <UserRound
+                size={18}
+                className="shrink-0 text-slate-400"
+              />
+              <input
+                type="text"
+                autoComplete="username"
+                placeholder="sandhya"
+                value={username}
+                onChange={(event) =>
+                  setUsername(
+                    event.target.value
+                  )
+                }
+                className="min-h-12 w-full bg-transparent text-base outline-none placeholder:text-slate-400"
+              />
+            </div>
+          </label>
 
-
-        {/* TITLE */}
-
-        <h2 className="text-2xl font-semibold text-gray-900 mb-2">
-
-          Sign In
-
-        </h2>
-
-        <p className="text-gray-500 mb-6">
-
-          Enter your WhatsApp number to continue.
-
-        </p>
-
-
-        {/* PHONE */}
-
-        <input
-          type="text"
-          placeholder="+91XXXXXXXXXX"
-          value={phoneNumber}
-          onChange={(e) =>
-            setPhoneNumber(
-              e.target.value
-            )
-          }
-          className="w-full border border-gray-300 rounded-2xl px-4 py-4 text-lg outline-none focus:border-black mb-4"
-        />
-
-
-        {/* PASSWORD */}
-
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) =>
-            setPassword(
-              e.target.value
-            )
-          }
-          className="w-full border border-gray-300 rounded-2xl px-4 py-4 text-lg outline-none focus:border-black mb-5"
-        />
-
-
-        {/* BUTTON */}
-
-        <button
-          onClick={handleLogin}
-          disabled={loading}
-          className="w-full bg-black hover:opacity-90 disabled:opacity-50 text-white py-4 rounded-2xl font-semibold transition"
-        >
-
-          {
-            loading
-
-              ? "Sending OTP..."
-
-              : "Send OTP"
-          }
-
-        </button>
-
-
-        {/* MESSAGE */}
-
-        {message && (
-
-          <p className="mt-5 text-center text-sm text-gray-600">
-
-            {message}
-
+          <p className="mt-2 text-xs text-slate-500">
+            Use the clinic username shared with you.
           </p>
-        )}
 
+          <label className="mt-5 block">
+            <span className="text-sm font-medium text-slate-700">
+              Password
+            </span>
+            <div className="mt-2 flex items-center gap-3 rounded-lg border border-slate-300 bg-white px-3 focus-within:border-teal-600 focus-within:ring-4 focus-within:ring-teal-100">
+              <LockKeyhole
+                size={18}
+                className="shrink-0 text-slate-400"
+              />
+              <input
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                placeholder="Enter password"
+                value={password}
+                onChange={(event) =>
+                  setPassword(
+                    event.target.value
+                  )
+                }
+                className="min-h-12 w-full bg-transparent text-base outline-none placeholder:text-slate-400"
+              />
+              <button
+                type="button"
+                onClick={() =>
+                  setShowPassword(
+                    (value) => !value
+                  )
+                }
+                className="rounded-lg p-2 text-slate-500 transition hover:bg-slate-100 hover:text-slate-950"
+                aria-label={showPassword ? "Hide password" : "Show password"}
+              >
+                {showPassword ? (
+                  <EyeOff size={18} />
+                ) : (
+                  <Eye size={18} />
+                )}
+              </button>
+            </div>
+          </label>
 
-        {/* FOOTER */}
+          <div className="mt-3 flex items-center justify-between gap-3 text-xs">
+            <span className="text-slate-500">
+              Need access?
+            </span>
+            <button
+              type="button"
+              onClick={handleForgotPassword}
+              disabled={forgotLoading}
+              className="font-semibold text-teal-700 transition hover:text-teal-800 disabled:opacity-60"
+            >
+              {forgotLoading ? "Sending..." : "Forgot password?"}
+            </button>
+          </div>
 
-        <p className="mt-8 text-center text-sm text-gray-400">
+          {message && (
+            <div
+              className={`mt-5 rounded-lg px-4 py-3 text-sm ${
+                messageType === "error"
+                  ? "bg-red-50 text-red-700"
+                  : messageType === "success"
+                    ? "bg-teal-50 text-teal-700"
+                    : "bg-slate-50 text-slate-700"
+              }`}
+            >
+              {message}
+            </div>
+          )}
 
-          Powered by QuickCliniq
-
-        </p>
-
-      </div>
-
-    </div>
+          <button
+            type="submit"
+            disabled={loading}
+            className="mt-6 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            {loading && (
+              <Loader2
+                size={18}
+                className="animate-spin"
+              />
+            )}
+            {loading ? "Sending OTP" : "Send OTP"}
+          </button>
+        </form>
+      </section>
+    </main>
   );
 }

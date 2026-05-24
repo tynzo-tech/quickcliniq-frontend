@@ -1,20 +1,38 @@
 import {
+  CalendarDays,
+  LogOut,
+  Users,
+  Clock3
+} from "lucide-react";
 
+import {
   Link,
-
   useLocation,
-
   useNavigate
-
 } from "react-router-dom";
 
 import logo from "../assets/logo.png";
 
 
+function getStoredClinic() {
+
+  try {
+
+    return JSON.parse(
+      localStorage.getItem(
+        "clinic"
+      )
+    );
+
+  } catch {
+
+    return null;
+  }
+}
+
+
 export default function Layout({
-
   children
-
 }) {
 
   const location =
@@ -23,45 +41,25 @@ export default function Layout({
   const navigate =
     useNavigate();
 
-
-  // ===================================================
-  // CLINIC DATA
-  // ===================================================
-
-  const clinic = JSON.parse(
-
-    localStorage.getItem(
-      "clinic"
-    )
-  );
-
-
-  // ===================================================
-  // NAVIGATION ITEMS
-  // ===================================================
+  const clinic = getStoredClinic();
 
   const navItems = [
-
     {
-      name: "Slots",
-      path: "/slots",
+      icon: Clock3,
+      name: "Schedule",
+      path: "/slots"
     },
-
     {
+      icon: CalendarDays,
       name: "Appointments",
-      path: "/appointments",
+      path: "/appointments"
     },
-
     {
+      icon: Users,
       name: "Patients",
-      path: "/patients",
-    },
+      path: "/patients"
+    }
   ];
-
-
-  // ===================================================
-  // LOGOUT
-  // ===================================================
 
   const handleLogout = () => {
 
@@ -70,222 +68,135 @@ export default function Layout({
     navigate("/login");
   };
 
+  const displayPhone =
+    clinic?.phone_number ||
+    localStorage.getItem(
+      "phone_number"
+    ) ||
+    "Clinic account";
 
   return (
 
-    <div className="min-h-screen bg-gray-100 flex">
+    <div className="min-h-screen bg-slate-50 text-slate-950">
+      <div className="flex min-h-screen">
+        <aside className="hidden w-72 shrink-0 border-r border-slate-200 bg-white/90 px-4 py-5 lg:flex lg:flex-col lg:justify-between">
+          <div>
+            <Link
+              to="/slots"
+              className="flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-slate-50"
+            >
+              <img
+                src={logo}
+                alt="QuickCliniq"
+                className="h-11 w-11 rounded-lg object-contain"
+              />
+              <div className="min-w-0">
+                <p className="truncate text-base font-semibold text-slate-950">
+                  {clinic?.name || "QuickCliniq"}
+                </p>
+                <p className="truncate text-sm text-slate-500">
+                  {clinic?.doctor_name || "Clinic workspace"}
+                </p>
+              </div>
+            </Link>
 
+            <nav className="mt-8 space-y-1">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const active =
+                  location.pathname === item.path;
 
-      {/* ===================================================
-          SIDEBAR
-      =================================================== */}
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition ${
+                      active
+                        ? "bg-slate-950 text-white shadow-sm"
+                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+                    }`}
+                  >
+                    <Icon size={18} />
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </nav>
+          </div>
 
-      <aside
-        className="
-          w-72
-          bg-white
-          border-r
-          border-gray-200
-          flex
-          flex-col
-          justify-between
-          p-6
-          shadow-sm
-        "
-      >
-
-        <div>
-
-          {/* ===================================================
-              HEADER
-          =================================================== */}
-
-          <div className="flex items-center gap-4 mb-12">
-
-            <img
-              src={logo}
-              alt="QuickCliniq"
-              className="
-                w-14
-                h-14
-                object-contain
-              "
-            />
-
-            <div>
-
-              <h1
-                className="
-                  text-2xl
-                  font-bold
-                  text-gray-900
-                  leading-tight
-                "
-              >
-
-                {
-                  clinic?.name ||
-
-                  "QuickCliniq"
-                }
-
-              </h1>
-
-              <p
-                className="
-                  text-sm
-                  text-gray-500
-                  mt-1
-                "
-              >
-
-                {
-                  clinic?.doctor_name ||
-
-                  "Clinic Dashboard"
-                }
-
+          <div className="space-y-3">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                Logged in as
               </p>
-
+              <p className="mt-1 truncate text-sm font-semibold text-slate-800">
+                {displayPhone}
+              </p>
             </div>
 
-          </div>
-
-
-          {/* ===================================================
-              NAVIGATION
-          =================================================== */}
-
-          <nav className="space-y-3">
-
-            {
-
-              navItems.map((item) => (
-
-                <Link
-                  key={item.path}
-                  to={item.path}
-                  className={`
-                    block
-                    px-5
-                    py-4
-                    rounded-2xl
-                    font-medium
-                    transition-all
-                    duration-200
-
-                    ${
-                      location.pathname
-                      === item.path
-
-                      ? `
-                        bg-black
-                        text-white
-                        shadow-md
-                      `
-
-                      : `
-                        bg-gray-100
-                        text-gray-700
-                        hover:bg-gray-200
-                      `
-                    }
-                  `}
-                >
-
-                  {item.name}
-
-                </Link>
-              ))
-            }
-
-          </nav>
-
-        </div>
-
-
-        {/* ===================================================
-            FOOTER
-        =================================================== */}
-
-        <div className="space-y-4">
-
-          <div
-            className="
-              bg-gray-100
-              rounded-2xl
-              p-4
-            "
-          >
-
-            <p
-              className="
-                text-xs
-                text-gray-500
-                mb-1
-              "
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-slate-950"
             >
-              Logged in as
-            </p>
-
-            <p
-              className="
-                text-sm
-                font-semibold
-                text-gray-900
-              "
-            >
-
-              {
-                clinic?.whatsapp_number ||
-
-                "Unknown Clinic"
-              }
-
-            </p>
-
+              <LogOut size={17} />
+              Logout
+            </button>
           </div>
+        </aside>
 
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/85 px-4 py-3 backdrop-blur-xl lg:hidden">
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate text-sm font-semibold text-slate-950">
+                  {clinic?.name || "QuickCliniq"}
+                </p>
+                <p className="truncate text-xs text-slate-500">
+                  {displayPhone}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="rounded-lg border border-slate-200 p-2 text-slate-600"
+                aria-label="Logout"
+              >
+                <LogOut size={18} />
+              </button>
+            </div>
 
-          <button
-            onClick={handleLogout}
-            className="
-              w-full
-              bg-black
-              text-white
-              py-4
-              rounded-2xl
-              font-semibold
-              hover:opacity-90
-              transition
-            "
-          >
+            <nav className="mt-3 grid grid-cols-3 gap-2">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                const active =
+                  location.pathname === item.path;
 
-            Logout
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`flex min-h-10 items-center justify-center gap-1.5 rounded-lg text-xs font-semibold ${
+                      active
+                        ? "bg-slate-950 text-white"
+                        : "bg-slate-100 text-slate-600"
+                    }`}
+                  >
+                    <Icon size={15} />
+                    {item.name}
+                  </Link>
+                );
+              })}
+            </nav>
+          </header>
 
-          </button>
-
+          <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-7xl">
+              {children}
+            </div>
+          </main>
         </div>
-
-      </aside>
-
-
-      {/* ===================================================
-          MAIN CONTENT
-      =================================================== */}
-
-      <main
-        className="
-          flex-1
-          p-8
-          overflow-y-auto
-        "
-      >
-
-        {children}
-
-      </main>
-
+      </div>
     </div>
   );
 }

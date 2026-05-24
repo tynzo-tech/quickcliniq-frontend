@@ -105,7 +105,10 @@ export default function VerifyOtp() {
       const data =
         await response.json();
 
-      if (data.success) {
+      if (
+        response.ok
+        && data.success
+      ) {
 
         localStorage.setItem(
 
@@ -145,6 +148,8 @@ export default function VerifyOtp() {
       } else {
 
         setMessage(
+
+          data.detail ||
 
           data.message ||
 
