@@ -169,7 +169,7 @@ function Navbar() {
 function DashboardPreview() {
   return (
     <div className="relative mx-auto max-w-5xl" id="product">
-      <div className="absolute -inset-6 -z-10 rounded-lg bg-gradient-to-r from-teal-200/40 via-cyan-200/30 to-slate-200/40 blur-3xl" />
+      <div className="absolute -inset-6 -z-10 rounded-lg bg-linear-to-r from-teal-200/40 via-cyan-200/30 to-slate-200/40 blur-3xl" />
       <div className="quickcliniq-float rounded-lg border border-white/70 bg-white/85 p-3 shadow-2xl shadow-slate-950/10 backdrop-blur-xl">
         <div className="rounded-lg border border-slate-200 bg-slate-950 p-4">
           <div className="flex items-center justify-between border-b border-white/10 pb-4">
@@ -207,7 +207,7 @@ function DashboardPreview() {
               ].map((item) => (
                 <div
                   key={item.title}
-                  className="rounded-lg border border-white/10 bg-white/[0.06] p-4 transition hover:bg-white/[0.09]"
+                  className="rounded-lg border border-white/10 bg-white/6 p-4 transition hover:bg-white/9"
                 >
                   <div className="flex items-start justify-between gap-4">
                     <div>
@@ -226,7 +226,7 @@ function DashboardPreview() {
               ))}
             </div>
 
-            <div className="rounded-lg border border-white/10 bg-white/[0.06] p-4">
+            <div className="rounded-lg border border-white/10 bg-white/6 p-4">
               <div className="flex items-center justify-between">
                 <h4 className="font-medium text-white">
                   Automation health
@@ -245,7 +245,7 @@ function DashboardPreview() {
                       <span className="font-medium text-teal-200">{value}</span>
                     </div>
                     <div className="mt-2 h-1.5 rounded-full bg-white/10">
-                      <div className="h-full w-4/5 rounded-full bg-gradient-to-r from-teal-300 to-cyan-300" />
+                      <div className="h-full w-4/5 rounded-full bg-linear-to-r from-teal-300 to-cyan-300" />
                     </div>
                   </div>
                 ))}
@@ -276,7 +276,7 @@ function Hero() {
 
   return (
     <section className="relative overflow-hidden px-4 py-20 sm:px-6 lg:px-8 lg:py-28">
-      <div className="absolute left-1/2 top-0 -z-10 h-[38rem] w-[38rem] -translate-x-1/2 rounded-full bg-teal-100/60 blur-3xl" />
+      <div className="absolute left-1/2 top-0 -z-10 h-125 w-125 -translate-x-1/2 rounded-full bg-teal-100/60 blur-3xl" />
       <div className="mx-auto max-w-7xl">
         <div className="mx-auto max-w-4xl text-center">
           <div className="inline-flex rounded-lg border border-teal-200 bg-white/70 px-3 py-2 text-sm font-medium text-teal-800 shadow-sm">

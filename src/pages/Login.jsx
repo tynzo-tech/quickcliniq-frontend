@@ -1,9 +1,14 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useState, useEffect }
+from "react";
+
+import { useNavigate }
+from "react-router-dom";
+
 
 export default function Login() {
 
-  const navigate = useNavigate();
+  const navigate =
+    useNavigate();
 
   const [phoneNumber, setPhoneNumber] =
     useState("");
@@ -17,7 +22,33 @@ export default function Login() {
   const [loading, setLoading] =
     useState(false);
 
-  const handleLogin = async () => {
+
+  // ===================================================
+  // AUTO REDIRECT
+  // ===================================================
+
+  useEffect(() => {
+
+    const loggedIn =
+
+      localStorage.getItem(
+        "is_logged_in"
+      );
+
+    if (loggedIn) {
+
+      navigate("/slots");
+    }
+
+  }, []);
+
+
+  // ===================================================
+  // LOGIN
+  // ===================================================
+
+  const handleLogin =
+  async () => {
 
     if (!phoneNumber) {
 
@@ -28,27 +59,46 @@ export default function Login() {
       return;
     }
 
+    if (!password) {
+
+      setMessage(
+        "Enter password"
+      );
+
+      return;
+    }
+
     setLoading(true);
+
+    setMessage("");
 
     try {
 
-      const response = await fetch(
-        "http://127.0.0.1:8000/login",
-        {
-          method: "POST",
+      const response =
+        await fetch(
 
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
+          `${import.meta.env.VITE_API_URL}/login`,
 
-          body: JSON.stringify({
-            phone_number:
-              phoneNumber,
-            password: password,
-          }),
-        }
-      );
+          {
+
+            method: "POST",
+
+            headers: {
+
+              "Content-Type":
+                "application/json",
+            },
+
+            body: JSON.stringify({
+
+              phone_number:
+                phoneNumber,
+
+              password:
+                password,
+            }),
+          }
+        );
 
       const data =
         await response.json();
@@ -56,15 +106,11 @@ export default function Login() {
       if (data.success) {
 
         localStorage.setItem(
+
           "phone_number",
+
           phoneNumber
         );
-        if (password) {
-          localStorage.setItem(
-            "login_password",
-            password
-          );
-        }
 
         setMessage(
           "OTP sent successfully"
@@ -81,7 +127,9 @@ export default function Login() {
       } else {
 
         setMessage(
+
           data.message ||
+
           "Login failed"
         );
       }
@@ -100,194 +148,124 @@ export default function Login() {
     }
   };
 
+
   return (
 
-    <div
-      className="
-        min-h-screen
-        flex
-        items-center
-        justify-center
-        bg-gray-100
-        px-4
-      "
-    >
+    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
 
-      <div
-        className="
-          w-full
-          max-w-md
-          bg-white
-          rounded-3xl
-          shadow-xl
-          p-8
-        "
-      >
+      <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8">
 
-        {/* Logo */}
+        {/* HEADER */}
 
-        <div
-          className="
-            flex
-            items-center
-            gap-4
-            mb-8
-          "
-        >
+        <div className="flex items-center gap-4 mb-8">
 
-          <div
-            className="
-              w-14
-              h-14
-              rounded-2xl
-              bg-blue-600
-              text-white
-              flex
-              items-center
-              justify-center
-              text-2xl
-              font-bold
-            "
-          >
+          <div className="w-14 h-14 rounded-2xl bg-black text-white flex items-center justify-center text-2xl font-bold">
+
             Q
+
           </div>
 
           <div>
 
-            <h1
-              className="
-                text-3xl
-                font-bold
-                text-gray-900
-              "
-            >
-              Quick Cliniq
+            <h1 className="text-3xl font-bold text-gray-900">
+
+              QuickCliniq
+
             </h1>
 
-            <p
-              className="
-                text-gray-500
-                text-sm
-              "
-            >
+            <p className="text-gray-500 text-sm">
+
               Clinic Login
+
             </p>
 
           </div>
 
         </div>
 
-        {/* Title */}
 
-        <h2
-          className="
-            text-2xl
-            font-semibold
-            text-gray-900
-            mb-2
-          "
-        >
+        {/* TITLE */}
+
+        <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+
           Sign In
+
         </h2>
 
-        <p
-          className="
-            text-gray-500
-            mb-6
-          "
-        >
-          Enter your WhatsApp number
-          to continue.
+        <p className="text-gray-500 mb-6">
+
+          Enter your WhatsApp number to continue.
+
         </p>
 
-        {/* Input */}
+
+        {/* PHONE */}
 
         <input
           type="text"
           placeholder="+91XXXXXXXXXX"
           value={phoneNumber}
-          onChange={(e) => setPhoneNumber(e.target.value)}
-          className="
-            w-full
-            border
-            border-gray-300
-            rounded-2xl
-            px-4
-            py-4
-            text-lg
-            outline-none
-            focus:border-blue-500
-            mb-4
-          "
+          onChange={(e) =>
+            setPhoneNumber(
+              e.target.value
+            )
+          }
+          className="w-full border border-gray-300 rounded-2xl px-4 py-4 text-lg outline-none focus:border-black mb-4"
         />
+
+
+        {/* PASSWORD */}
 
         <input
           type="password"
           placeholder="Password"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className="
-            w-full
-            border
-            border-gray-300
-            rounded-2xl
-            px-4
-            py-4
-            text-lg
-            outline-none
-            focus:border-blue-500
-            mb-5
-          "
+          onChange={(e) =>
+            setPassword(
+              e.target.value
+            )
+          }
+          className="w-full border border-gray-300 rounded-2xl px-4 py-4 text-lg outline-none focus:border-black mb-5"
         />
 
-        {/* Button */}
+
+        {/* BUTTON */}
 
         <button
           onClick={handleLogin}
           disabled={loading}
-          className="
-            w-full
-            bg-blue-600
-            hover:bg-blue-700
-            text-white
-            py-4
-            rounded-2xl
-            font-semibold
-            transition
-          "
+          className="w-full bg-black hover:opacity-90 disabled:opacity-50 text-white py-4 rounded-2xl font-semibold transition"
         >
-          {loading ? "Sending OTP..." : "Send OTP"}
+
+          {
+            loading
+
+              ? "Sending OTP..."
+
+              : "Send OTP"
+          }
+
         </button>
 
-        {/* Message */}
 
-        {
-          message && (
+        {/* MESSAGE */}
 
-            <p
-              className="
-                mt-5
-                text-center
-                text-sm
-                text-gray-600
-              "
-            >
-              {message}
-            </p>
-          )
-        }
+        {message && (
 
-        {/* Footer */}
+          <p className="mt-5 text-center text-sm text-gray-600">
 
-        <p
-          className="
-            mt-8
-            text-center
-            text-sm
-            text-gray-400
-          "
-        >
-          Powered by Quick Cliniq
+            {message}
+
+          </p>
+        )}
+
+
+        {/* FOOTER */}
+
+        <p className="mt-8 text-center text-sm text-gray-400">
+
+          Powered by QuickCliniq
+
         </p>
 
       </div>

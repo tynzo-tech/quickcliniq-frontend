@@ -2,20 +2,20 @@ import {
   BrowserRouter,
   Routes,
   Route,
-  Navigate,
+  Navigate
 } from "react-router-dom";
 
-import QuickCliniqHome
-from "./pages/QuickCliniqHome";
+import QuickCliniqHome from "./pages/QuickCliniqHome";
+import Login from "./pages/Login";
+import Privacy from "./pages/Privacy";
+import VerifyOtp from "./pages/VerifyOtp";
 
-import Login
-from "./pages/Login";
+import ShiftManagement from "./slots/pages/ShiftManagement";
+import Appointments from "./appointments/pages/Appointments";
+import Patients from "./patients/pages/Patients";
 
-import Privacy
-from "./pages/Privacy";
+import ProtectedRoute from "./components/ProtectedRoute";
 
-import VerifyOtp
-from "./pages/VerifyOtp";
 
 function App() {
 
@@ -24,6 +24,8 @@ function App() {
     <BrowserRouter>
 
       <Routes>
+
+        {/* HOME */}
 
         <Route
           path="/"
@@ -34,6 +36,9 @@ function App() {
           path="/quickcliniq"
           element={<QuickCliniqHome />}
         />
+
+
+        {/* AUTH */}
 
         <Route
           path="/login"
@@ -49,6 +54,45 @@ function App() {
           path="/verify_otp"
           element={<VerifyOtp />}
         />
+
+
+        {/* DASHBOARD */}
+
+        <Route
+        path="/slots"
+        element={
+        <ProtectedRoute>
+
+          <ShiftManagement />
+
+        </ProtectedRoute>
+        }
+        />
+
+        <Route
+        path="/appointments"
+        element={
+          <ProtectedRoute>
+
+            <Appointments />
+
+          </ProtectedRoute>
+        }
+      />
+
+        <Route
+        path="/patients"
+        element={
+          <ProtectedRoute>
+
+            <Patients />
+
+          </ProtectedRoute>
+        }
+      />
+
+
+        {/* REDIRECTS */}
 
         <Route
           path="/home"
