@@ -4,6 +4,8 @@ import {
   LogOut,
   Users,
   Clock3
+  ,
+  UserRound
 } from "lucide-react";
 
 import {
@@ -62,8 +64,18 @@ export default function Layout({
       icon: Users,
       name: "Patients",
       path: "/patients"
+    },
+    {
+      icon: UserRound,
+      name: "Profile",
+      path: "/profile"
     }
   ];
+
+  const theme =
+    localStorage.getItem(
+      "theme"
+    ) || "light";
 
   const handleLogout = () => {
 
@@ -81,7 +93,7 @@ export default function Layout({
 
   return (
 
-    <div className="min-h-screen bg-slate-50 text-slate-950">
+    <div className={`theme-${theme} min-h-screen bg-slate-50 text-slate-950`}>
       <div className="flex min-h-screen">
         <aside className="hidden w-72 shrink-0 border-r border-slate-200 bg-white/90 px-4 py-5 shadow-sm shadow-slate-950/3 backdrop-blur-xl lg:flex lg:flex-col lg:justify-between">
           <div>
@@ -182,7 +194,7 @@ export default function Layout({
               </button>
             </div>
 
-            <nav className="mt-3 grid grid-cols-3 gap-2">
+            <nav className="mt-3 grid grid-cols-4 gap-2">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const active =

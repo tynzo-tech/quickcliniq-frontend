@@ -14,7 +14,8 @@ import {
   Plus,
   RefreshCw,
   Search,
-  Stethoscope
+  Stethoscope,
+  UserPlus
 } from "lucide-react";
 
 import Layout
@@ -78,6 +79,55 @@ function statusClass(status) {
 
   return "bg-slate-100 text-slate-700";
 }
+
+
+function formatAppointmentDate(value) {
+
+  if (!value) {
+
+    return "-";
+  }
+
+  try {
+
+    return new Intl.DateTimeFormat(
+      "en-IN",
+      {
+        day: "2-digit",
+        month: "short",
+        year: "numeric"
+      }
+    ).format(
+      new Date(`${value}T00:00:00`)
+    );
+
+  } catch {
+
+    return value;
+  }
+}
+
+
+function Field({
+  label,
+  children
+}) {
+
+  return (
+    <label className="block">
+      <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+        {label}
+      </span>
+      <div className="mt-1.5">
+        {children}
+      </div>
+    </label>
+  );
+}
+
+
+const inputClass =
+  "min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-4 focus:ring-teal-50";
 
 
 export default function Appointments() {
@@ -492,174 +542,225 @@ export default function Appointments() {
       </div>
 
       <section className="mt-6 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-slate-950">
-              Walk-in booking
+            <div className="inline-flex items-center gap-2 rounded-lg bg-teal-50 px-2.5 py-1 text-xs font-semibold text-teal-700">
+              <UserPlus size={14} />
+              Walk-in
+            </div>
+            <h2 className="mt-3 text-lg font-semibold text-slate-950">
+              Book a physical visit
             </h2>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
               Create a physical visit appointment using available doctor slots.
             </p>
           </div>
-          <Plus className="hidden text-teal-600 sm:block" />
-        </div>
-
-        <form
-          onSubmit={createManualAppointment}
-          className="mt-5 grid gap-3 lg:grid-cols-4"
-        >
-          <select
-            value={manualForm.doctor_name}
-            onChange={(event) =>
-              updateManualForm(
-                "doctor_name",
-                event.target.value
-              )
-            }
-            className="min-h-11 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
-            required
-          >
-            {shifts.map((shift) => (
-              <option
-                key={shift.id}
-                value={shift.doctor_name}
-              >
-                {shift.doctor_name}
-              </option>
-            ))}
-          </select>
-
-          <input
-            type="date"
-            value={manualForm.appointment_date}
-            onChange={(event) =>
-              updateManualForm(
-                "appointment_date",
-                event.target.value
-              )
-            }
-            className="min-h-11 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
-            required
-          />
-
           <button
             type="button"
             onClick={loadManualSlots}
             disabled={slotLoading}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-teal-100 bg-teal-50 px-3 text-sm font-semibold text-teal-700 transition hover:border-teal-200 hover:bg-teal-100 disabled:opacity-60"
           >
-            {slotLoading && (
+            {slotLoading ? (
               <Loader2
                 size={15}
                 className="animate-spin"
               />
+            ) : (
+              <RefreshCw size={15} />
             )}
-            Load slots
+            Find slots
           </button>
+        </div>
 
-          <select
-            value={manualForm.appointment_time}
-            onChange={(event) =>
-              updateManualForm(
-                "appointment_time",
-                event.target.value
-              )
-            }
-            className="min-h-11 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
-            required
-          >
-            <option value="">Select slot</option>
-            {manualSlots.map((slot) => (
-              <option
-                key={slot}
-                value={slot}
+        <form
+          onSubmit={createManualAppointment}
+          className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]"
+        >
+          <div className="grid gap-3 rounded-lg border border-slate-100 bg-slate-50/60 p-4 sm:grid-cols-2">
+            <Field label="Doctor">
+              <select
+                value={manualForm.doctor_name}
+                onChange={(event) =>
+                  updateManualForm(
+                    "doctor_name",
+                    event.target.value
+                  )
+                }
+                className={inputClass}
+                required
               >
-                {slot}
-              </option>
-            ))}
-          </select>
+                {shifts.map((shift) => (
+                  <option
+                    key={shift.id}
+                    value={shift.doctor_name}
+                  >
+                    {shift.doctor_name}
+                  </option>
+                ))}
+              </select>
+            </Field>
 
-          <input
-            type="text"
-            placeholder="Patient name"
-            value={manualForm.patient_name}
-            onChange={(event) =>
-              updateManualForm(
-                "patient_name",
-                event.target.value
-              )
-            }
-            className="min-h-11 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
-            required
-          />
-
-          <input
-            type="text"
-            placeholder="Age"
-            value={manualForm.patient_age}
-            onChange={(event) =>
-              updateManualForm(
-                "patient_age",
-                event.target.value
-              )
-            }
-            className="min-h-11 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
-          />
-
-          <input
-            type="text"
-            placeholder="Gender"
-            value={manualForm.patient_gender}
-            onChange={(event) =>
-              updateManualForm(
-                "patient_gender",
-                event.target.value
-              )
-            }
-            className="min-h-11 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
-          />
-
-          <input
-            type="tel"
-            placeholder="Phone"
-            value={manualForm.phone_number}
-            onChange={(event) =>
-              updateManualForm(
-                "phone_number",
-                event.target.value
-              )
-            }
-            className="min-h-11 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
-            required
-          />
-
-          <input
-            type="text"
-            placeholder="Health issue"
-            value={manualForm.health_issue}
-            onChange={(event) =>
-              updateManualForm(
-                "health_issue",
-                event.target.value
-              )
-            }
-            className="min-h-11 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100 lg:col-span-3"
-            required
-          />
-
-          <button
-            type="submit"
-            disabled={creating}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
-          >
-            {creating && (
-              <Loader2
-                size={15}
-                className="animate-spin"
+            <Field label="Date">
+              <input
+                type="date"
+                value={manualForm.appointment_date}
+                onChange={(event) =>
+                  updateManualForm(
+                    "appointment_date",
+                    event.target.value
+                  )
+                }
+                className={inputClass}
+                required
               />
-            )}
-            Book
-          </button>
+            </Field>
+
+            <div className="sm:col-span-2">
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                  Available slots
+                </span>
+                {manualSlots.length > 0 && (
+                  <span className="text-xs font-medium text-slate-500">
+                    {manualSlots.length} open
+                  </span>
+                )}
+              </div>
+              <div className="min-h-20 rounded-lg border border-slate-200 bg-white p-2">
+                {slotLoading ? (
+                  <div className="flex min-h-16 items-center justify-center text-sm text-slate-500">
+                    <Loader2 className="mr-2 animate-spin text-teal-600" size={16} />
+                    Checking slots
+                  </div>
+                ) : manualSlots.length === 0 ? (
+                  <div className="flex min-h-16 items-center justify-center text-sm text-slate-400">
+                    Choose doctor/date and find slots.
+                  </div>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {manualSlots.map((slot) => (
+                      <button
+                        key={slot}
+                        type="button"
+                        onClick={() =>
+                          updateManualForm(
+                            "appointment_time",
+                            slot
+                          )
+                        }
+                        className={`min-h-9 rounded-lg border px-3 text-sm font-semibold transition ${
+                          manualForm.appointment_time === slot
+                            ? "border-slate-950 bg-slate-950 text-white"
+                            : "border-slate-200 bg-white text-slate-700 hover:border-teal-200 hover:bg-teal-50"
+                        }`}
+                      >
+                        {slot}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Field label="Patient name">
+              <input
+                type="text"
+                placeholder="Patient name"
+                value={manualForm.patient_name}
+                onChange={(event) =>
+                  updateManualForm(
+                    "patient_name",
+                    event.target.value
+                  )
+                }
+                className={inputClass}
+                required
+              />
+            </Field>
+
+            <Field label="Phone">
+              <input
+                type="tel"
+                placeholder="Phone"
+                value={manualForm.phone_number}
+                onChange={(event) =>
+                  updateManualForm(
+                    "phone_number",
+                    event.target.value
+                  )
+                }
+                className={inputClass}
+                required
+              />
+            </Field>
+
+            <Field label="Age">
+              <input
+                type="text"
+                placeholder="Age"
+                value={manualForm.patient_age}
+                onChange={(event) =>
+                  updateManualForm(
+                    "patient_age",
+                    event.target.value
+                  )
+                }
+                className={inputClass}
+              />
+            </Field>
+
+            <Field label="Gender">
+              <input
+                type="text"
+                placeholder="Gender"
+                value={manualForm.patient_gender}
+                onChange={(event) =>
+                  updateManualForm(
+                    "patient_gender",
+                    event.target.value
+                  )
+                }
+                className={inputClass}
+              />
+            </Field>
+
+            <Field label="Health issue">
+              <input
+                type="text"
+                placeholder="Health issue"
+                value={manualForm.health_issue}
+                onChange={(event) =>
+                  updateManualForm(
+                    "health_issue",
+                    event.target.value
+                  )
+                }
+                className={inputClass}
+                required
+              />
+            </Field>
+
+            <div className="flex items-end">
+              <button
+                type="submit"
+                disabled={creating || !manualForm.appointment_time}
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {creating ? (
+                  <Loader2
+                    size={15}
+                    className="animate-spin"
+                  />
+                ) : (
+                  <Plus size={15} />
+                )}
+                Book visit
+              </button>
+            </div>
+          </div>
         </form>
       </section>
 
@@ -730,16 +831,12 @@ export default function Appointments() {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
+            <table className="w-full min-w-[1040px] text-left text-sm">
               <thead className="bg-slate-50 text-slate-600">
                 <tr>
-                  <th className="px-5 py-3 font-semibold">Appointment No</th>
-                  <th className="px-5 py-3 font-semibold">Patient Name</th>
-                  <th className="px-5 py-3 font-semibold">Created By</th>
+                  <th className="px-5 py-3 font-semibold">Appointment</th>
+                  <th className="px-5 py-3 font-semibold">Patient</th>
                   <th className="px-5 py-3 font-semibold">Doctor</th>
-                  <th className="px-5 py-3 font-semibold">Appointment Date</th>
-                  <th className="px-5 py-3 font-semibold">Phone</th>
-                  <th className="px-5 py-3 font-semibold">Gender</th>
                   <th className="px-5 py-3 font-semibold">Health Issue</th>
                   <th className="px-5 py-3 font-semibold">Status</th>
                   <th className="px-5 py-3 font-semibold">Action</th>
@@ -751,31 +848,30 @@ export default function Appointments() {
                     key={appointment.id}
                     className="border-t border-slate-100 transition hover:bg-slate-50/80"
                   >
-                    <td className="px-5 py-4 font-medium text-slate-950">
-                      #{appointment.appointment_no || appointment.id}
+                    <td className="px-5 py-4">
+                      <p className="font-semibold text-slate-950">
+                        #{appointment.appointment_no || appointment.id}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {formatAppointmentDate(appointment.appointment_date)} · {appointment.appointment_time || "-"}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        {appointment.created_by || "WhatsApp"}
+                      </p>
                     </td>
                     <td className="px-5 py-4">
                       <p className="font-medium text-slate-950">
                         {appointment.patient_name || "Patient"}
                       </p>
                       <p className="mt-1 text-xs text-slate-500">
-                        {appointment.appointment_time || "-"}
+                        {appointment.phone_number || "-"}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-400">
+                        {appointment.gender || "Gender not set"}
                       </p>
                     </td>
                     <td className="px-5 py-4 text-slate-700">
-                      {appointment.created_by || "WhatsApp"}
-                    </td>
-                    <td className="px-5 py-4 text-slate-700">
                       {appointment.doctor_name || "Doctor"}
-                    </td>
-                    <td className="px-5 py-4 text-slate-700">
-                      {appointment.appointment_date || "-"}
-                    </td>
-                    <td className="px-5 py-4 text-slate-700">
-                      {appointment.phone_number || "-"}
-                    </td>
-                    <td className="px-5 py-4 text-slate-700">
-                      {appointment.gender || "-"}
                     </td>
                     <td className="max-w-xs px-5 py-4 text-slate-600">
                       <span className="line-clamp-2">
@@ -801,7 +897,7 @@ export default function Appointments() {
                           cancellingId === appointment.id
                           || String(appointment.status || "").toLowerCase() === "cancelled"
                         }
-                        className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-red-100 bg-white px-3 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                        className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-red-100 bg-white px-3 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
                       >
                         {cancellingId === appointment.id ? (
                           <Loader2

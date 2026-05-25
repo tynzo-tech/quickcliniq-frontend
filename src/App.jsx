@@ -9,6 +9,7 @@ import QuickCliniqHome from "./pages/QuickCliniqHome";
 import Login from "./pages/Login";
 import Privacy from "./pages/Privacy";
 import ChangePassword from "./pages/ChangePassword";
+import Profile from "./pages/Profile";
 import VerifyOtp from "./pages/VerifyOtp";
 
 import ShiftManagement from "./slots/pages/ShiftManagement";
@@ -92,6 +93,17 @@ function App() {
           <ProtectedRoute>
 
             <Patients />
+
+          </ProtectedRoute>
+        }
+      />
+
+        <Route
+        path="/profile"
+        element={
+          <ProtectedRoute>
+
+            <Profile />
 
           </ProtectedRoute>
         }
