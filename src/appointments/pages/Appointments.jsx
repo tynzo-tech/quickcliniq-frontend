@@ -9,6 +9,7 @@ import axios from "axios";
 
 import {
   CalendarCheck,
+  Ban,
   Loader2,
   RefreshCw,
   Search,
@@ -100,6 +101,9 @@ export default function Appointments() {
   const [statusFilter, setStatusFilter] =
     useState("all");
 
+  const [cancellingId, setCancellingId] =
+    useState(null);
+
   const fetchAppointments =
     useCallback(async () => {
 
@@ -178,6 +182,8 @@ export default function Appointments() {
         const searchable = [
           appointment.patient_name,
           appointment.phone_number,
+          appointment.gender,
+          appointment.created_by,
           appointment.doctor_name,
           appointment.problem,
           appointment.appointment_date,
@@ -213,6 +219,55 @@ export default function Appointments() {
         .map((appointment) => appointment.doctor_name)
         .filter(Boolean)
     ).size;
+
+  const cancelAppointment =
+    useCallback(async (appointment) => {
+
+      const confirmed =
+        window.confirm(
+          `Cancel appointment #${appointment.appointment_no || appointment.id}?`
+        );
+
+      if (!confirmed) {
+
+        return;
+      }
+
+      try {
+
+        setCancellingId(
+          appointment.id
+        );
+
+        await axios.put(
+          apiUrl(`/appointments/${appointment.id}/cancel`),
+          null,
+          {
+            params: {
+              clinic_id: clinicId
+            }
+          }
+        );
+
+        await fetchAppointments();
+
+      } catch (error) {
+
+        console.log(error);
+
+        setError(
+          error.response?.data?.detail ||
+            "Failed to cancel appointment"
+        );
+
+      } finally {
+
+        setCancellingId(null);
+      }
+    }, [
+      clinicId,
+      fetchAppointments
+    ]);
 
   return (
     <Layout
@@ -330,12 +385,16 @@ export default function Appointments() {
             <table className="w-full text-left text-sm">
               <thead className="bg-slate-50 text-slate-600">
                 <tr>
-                  <th className="px-5 py-3 font-semibold">Patient</th>
+                  <th className="px-5 py-3 font-semibold">Appointment No</th>
+                  <th className="px-5 py-3 font-semibold">Patient Name</th>
+                  <th className="px-5 py-3 font-semibold">Created By</th>
                   <th className="px-5 py-3 font-semibold">Doctor</th>
-                  <th className="px-5 py-3 font-semibold">Date</th>
-                  <th className="px-5 py-3 font-semibold">Time</th>
-                  <th className="px-5 py-3 font-semibold">Problem</th>
+                  <th className="px-5 py-3 font-semibold">Appointment Date</th>
+                  <th className="px-5 py-3 font-semibold">Phone</th>
+                  <th className="px-5 py-3 font-semibold">Gender</th>
+                  <th className="px-5 py-3 font-semibold">Health Issue</th>
                   <th className="px-5 py-3 font-semibold">Status</th>
+                  <th className="px-5 py-3 font-semibold">Action</th>
                 </tr>
               </thead>
               <tbody>
@@ -344,13 +403,19 @@ export default function Appointments() {
                     key={appointment.id}
                     className="border-t border-slate-100 transition hover:bg-slate-50/80"
                   >
+                    <td className="px-5 py-4 font-medium text-slate-950">
+                      #{appointment.appointment_no || appointment.id}
+                    </td>
                     <td className="px-5 py-4">
                       <p className="font-medium text-slate-950">
                         {appointment.patient_name || "Patient"}
                       </p>
                       <p className="mt-1 text-xs text-slate-500">
-                        {appointment.phone_number || "No phone number"}
+                        {appointment.appointment_time || "-"}
                       </p>
+                    </td>
+                    <td className="px-5 py-4 text-slate-700">
+                      {appointment.created_by || "WhatsApp"}
                     </td>
                     <td className="px-5 py-4 text-slate-700">
                       {appointment.doctor_name || "Doctor"}
@@ -359,17 +424,47 @@ export default function Appointments() {
                       {appointment.appointment_date || "-"}
                     </td>
                     <td className="px-5 py-4 text-slate-700">
-                      {appointment.appointment_time || "-"}
+                      {appointment.phone_number || "-"}
+                    </td>
+                    <td className="px-5 py-4 text-slate-700">
+                      {appointment.gender || "-"}
                     </td>
                     <td className="max-w-xs px-5 py-4 text-slate-600">
                       <span className="line-clamp-2">
-                        {appointment.problem || "Not provided"}
+                        {appointment.problem === "WhatsApp booking"
+                          ? "Health issue not provided"
+                          : appointment.problem || "Health issue not provided"}
                       </span>
                     </td>
                     <td className="px-5 py-4">
                       <span className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${statusClass(appointment.status)}`}>
                         {appointment.status || "Pending"}
                       </span>
+                    </td>
+                    <td className="px-5 py-4">
+                      <button
+                        type="button"
+                        onClick={() =>
+                          cancelAppointment(
+                            appointment
+                          )
+                        }
+                        disabled={
+                          cancellingId === appointment.id
+                          || String(appointment.status || "").toLowerCase() === "cancelled"
+                        }
+                        className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-red-100 bg-white px-3 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50"
+                      >
+                        {cancellingId === appointment.id ? (
+                          <Loader2
+                            size={14}
+                            className="animate-spin"
+                          />
+                        ) : (
+                          <Ban size={14} />
+                        )}
+                        Cancel
+                      </button>
                     </td>
                   </tr>
                 ))}
