@@ -1,4 +1,4 @@
-import {
+﻿import {
   useCallback,
   useEffect,
   useState
@@ -11,7 +11,9 @@ import {
   Moon,
   Plus,
   Save,
-  Sun
+  Pencil,
+  Sun,
+  Trash2
 } from "lucide-react";
 
 import Layout from "../components/Layout";
@@ -36,7 +38,7 @@ function emptyDoctorForm(clinicId) {
 
   return {
     clinic_id: Number(clinicId),
-    doctor_name: "",
+    name: "",
     working_days: [
       "Mon",
       "Tue",
@@ -48,7 +50,7 @@ function emptyDoctorForm(clinicId) {
     end_time: "17:00",
     break_start: "",
     break_end: "",
-    slot_duration: 10
+    consultation_duration: 10
   };
 }
 
@@ -103,6 +105,15 @@ export default function Profile() {
     useState(true);
 
   const [saving, setSaving] =
+    useState(false);
+
+  const [deleteTarget, setDeleteTarget] =
+    useState(null);
+
+  const [editingDoctorId, setEditingDoctorId] =
+    useState(null);
+
+  const [deleting, setDeleting] =
     useState(false);
 
 
@@ -327,7 +338,50 @@ export default function Profile() {
     };
 
 
-  const addDoctor =
+  const startEditDoctor =
+    (doctor) => {
+
+      setEditingDoctorId(
+        doctor.id
+      );
+
+      setDoctorForm({
+        clinic_id: Number(clinicId),
+        name: doctor.name || doctor.doctor_name || "",
+        specialization: doctor.specialization || "",
+        phone_number: doctor.phone_number || "",
+        email: doctor.email || "",
+        consultation_duration: doctor.consultation_duration || 10,
+        working_days: doctor.working_days
+          ? doctor.working_days.split(",").filter(Boolean)
+          : [
+              "Mon",
+              "Tue",
+              "Wed",
+              "Thu",
+              "Fri"
+            ],
+        start_time: doctor.start_time || "09:00",
+        end_time: doctor.end_time || "17:00",
+        break_start: doctor.break_start || "",
+        break_end: doctor.break_end || ""
+      });
+    };
+
+
+  const cancelEditDoctor =
+    () => {
+
+      setEditingDoctorId(null);
+      setDoctorForm(
+        emptyDoctorForm(
+          clinicId
+        )
+      );
+    };
+
+
+  const saveDoctor =
     async (event) => {
 
       event.preventDefault();
@@ -336,17 +390,31 @@ export default function Profile() {
 
         setSaving(true);
 
-        await axios.post(
-          apiUrl("/doctors"),
-          {
-            ...doctorForm,
-            break_start: doctorForm.break_start || null,
-            break_end: doctorForm.break_end || null,
-            slot_duration: Number(
-              doctorForm.slot_duration
-            )
-          }
-        );
+        const payload = {
+          ...doctorForm,
+          break_start: doctorForm.break_start || null,
+          break_end: doctorForm.break_end || null,
+          consultation_duration: Number(
+            doctorForm.consultation_duration
+          )
+        };
+
+        if (editingDoctorId) {
+
+          await axios.put(
+            apiUrl(`/doctors/${editingDoctorId}`),
+            payload
+          );
+
+        } else {
+
+          await axios.post(
+            apiUrl("/doctors"),
+            payload
+          );
+        }
+
+        setEditingDoctorId(null);
 
         setDoctorForm(
           emptyDoctorForm(
@@ -357,7 +425,9 @@ export default function Profile() {
         await loadProfile();
 
         showMessage(
-          "Doctor added."
+          editingDoctorId
+            ? "Doctor updated."
+            : "Doctor added."
         );
 
       } catch (error) {
@@ -366,12 +436,61 @@ export default function Profile() {
 
         showError(
           error.response?.data?.detail ||
-            "Failed to add doctor"
+            "Failed to save doctor"
         );
 
       } finally {
 
         setSaving(false);
+      }
+    };
+
+
+  const addDoctor =
+    saveDoctor;
+
+
+  const deleteDoctor =
+    async () => {
+
+      if (!deleteTarget) {
+
+        return;
+      }
+
+      try {
+
+        setDeleting(true);
+
+        await axios.delete(
+          apiUrl(`/doctors/${deleteTarget.id}`),
+          {
+            params: {
+              clinic_id: Number(clinicId)
+            }
+          }
+        );
+
+        setDeleteTarget(null);
+
+        await loadProfile();
+
+        showMessage(
+          "Doctor deleted."
+        );
+
+      } catch (error) {
+
+        console.log(error);
+
+        showError(
+          error.response?.data?.detail ||
+            "Failed to delete doctor"
+        );
+
+      } finally {
+
+        setDeleting(false);
       }
     };
 
@@ -565,13 +684,42 @@ export default function Profile() {
               ) : doctors.map((doctor) => (
                 <div
                   key={doctor.id}
-                  className="rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-700"
+                  className="flex items-center justify-between gap-3 rounded-lg border border-slate-100 bg-slate-50 px-3 py-2 text-sm text-slate-700"
                 >
-                  <span className="font-semibold text-slate-950">
-                    {doctor.doctor_name}
-                  </span>
-                  {" "}
-                  {doctor.working_days} · {doctor.start_time}-{doctor.end_time}
+                  <div>
+                    <span className="font-semibold text-slate-950">
+                      {doctor.doctor_name}
+                    </span>
+                    <span className="ml-2 text-slate-500">
+                      {doctor.working_days} - {doctor.start_time}-{doctor.end_time}
+                    </span>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        startEditDoctor(
+                          doctor
+                        )
+                      }
+                      className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:bg-slate-100"
+                    >
+                      <Pencil size={14} />
+                      Edit
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setDeleteTarget(
+                          doctor
+                        )
+                      }
+                      className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-red-100 bg-white px-3 text-xs font-semibold text-red-700 transition hover:bg-red-50"
+                    >
+                      <Trash2 size={14} />
+                      Delete
+                    </button>
+                  </div>
                 </div>
               ))}
             </div>
@@ -582,17 +730,17 @@ export default function Profile() {
             className="w-full max-w-2xl rounded-lg border border-slate-200 p-4"
           >
             <h3 className="text-sm font-semibold text-slate-950">
-              Add doctor
+              {editingDoctorId ? "Edit doctor" : "Add doctor"}
             </h3>
 
             <div className="mt-4 grid gap-3 sm:grid-cols-2">
               <input
                 type="text"
                 placeholder="Doctor name"
-                value={doctorForm.doctor_name}
+                value={doctorForm.name}
                 onChange={(event) =>
                   updateDoctor(
-                    "doctor_name",
+                    "name",
                     event.target.value
                   )
                 }
@@ -630,10 +778,10 @@ export default function Profile() {
                 type="number"
                 min="1"
                 max="240"
-                value={doctorForm.slot_duration}
+                value={doctorForm.consultation_duration}
                 onChange={(event) =>
                   updateDoctor(
-                    "slot_duration",
+                    "consultation_duration",
                     event.target.value
                   )
                 }
@@ -669,11 +817,61 @@ export default function Profile() {
               className="mt-4 inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-teal-700 px-4 text-sm font-semibold text-white transition hover:bg-teal-800 disabled:opacity-60"
             >
               <Plus size={16} />
-              Add doctor
+              {editingDoctorId ? "Save doctor" : "Add doctor"}
             </button>
+            {editingDoctorId && (
+              <button
+                type="button"
+                onClick={cancelEditDoctor}
+                disabled={saving}
+                className="ml-2 mt-4 inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+            )}
           </form>
         </div>
       </section>
+
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/40 px-4">
+          <div className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-5 shadow-2xl">
+            <h2 className="text-lg font-semibold text-slate-950">
+              Delete this doctor
+            </h2>
+            <p className="mt-3 text-sm leading-6 text-slate-500">
+              Once you delete a doctor, there is no going back. Please be certain.
+            </p>
+            <div className="mt-6 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() =>
+                  setDeleteTarget(null)
+                }
+                disabled={deleting}
+                className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={deleteDoctor}
+                disabled={deleting}
+                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-red-600 px-4 text-sm font-semibold text-white transition hover:bg-red-700 disabled:opacity-60"
+              >
+                {deleting && (
+                  <Loader2
+                    size={15}
+                    className="animate-spin"
+                  />
+                )}
+                Delete doctor
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </Layout>
   );
 }
+

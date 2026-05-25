@@ -155,6 +155,9 @@ export default function Appointments() {
   const [statusFilter, setStatusFilter] =
     useState("all");
 
+  const [doctorFilter, setDoctorFilter] =
+    useState("all");
+
   const [cancellingId, setCancellingId] =
     useState(null);
 
@@ -169,6 +172,7 @@ export default function Appointments() {
 
   const [manualForm, setManualForm] =
     useState({
+      doctor_id: "",
       doctor_name: "",
       appointment_date: "",
       appointment_time: "",
@@ -221,6 +225,8 @@ export default function Appointments() {
 
         setManualForm((current) => ({
           ...current,
+          doctor_id:
+            current.doctor_id || activeShifts[0]?.doctor_id || "",
           doctor_name:
             current.doctor_name || activeShifts[0]?.doctor_name || ""
         }));
@@ -264,6 +270,63 @@ export default function Appointments() {
       )
     ], [appointments]);
 
+  const doctorOptions =
+    useMemo(() => {
+
+      const doctors = new Map();
+
+      shifts.forEach((shift) => {
+
+        const id =
+          shift.doctor_id
+            ? String(shift.doctor_id)
+            : shift.doctor_name;
+
+        if (!id || doctors.has(id)) {
+
+          return;
+        }
+
+        doctors.set(id, {
+          id,
+          doctor_id: shift.doctor_id || "",
+          doctor_name: shift.doctor_name
+        });
+      });
+
+      appointments.forEach((appointment) => {
+
+        const id =
+          appointment.doctor_id
+            ? String(appointment.doctor_id)
+            : appointment.doctor_name;
+
+        if (!id || doctors.has(id)) {
+
+          return;
+        }
+
+        doctors.set(id, {
+          id,
+          doctor_id: appointment.doctor_id || "",
+          doctor_name: appointment.doctor_name
+        });
+      });
+
+      return Array.from(
+        doctors.values()
+      );
+
+    }, [
+      appointments,
+      shifts
+    ]);
+
+  const selectedDoctor =
+    doctorOptions.find((doctor) =>
+      doctor.id === doctorFilter
+    );
+
   const filteredAppointments =
     useMemo(() => {
 
@@ -275,6 +338,15 @@ export default function Appointments() {
         const matchesStatus =
           statusFilter === "all"
           || appointment.status === statusFilter;
+
+        const matchesDoctor =
+          doctorFilter === "all"
+          || String(appointment.doctor_id || "") === doctorFilter
+          || (
+            !appointment.doctor_id
+            && selectedDoctor?.doctor_name
+            && appointment.doctor_name === selectedDoctor.doctor_name
+          );
 
         const searchable = [
           appointment.patient_name,
@@ -291,6 +363,7 @@ export default function Appointments() {
           .toLowerCase();
 
         return matchesStatus
+          && matchesDoctor
           && (
             !normalizedQuery
             || searchable.includes(normalizedQuery)
@@ -299,12 +372,14 @@ export default function Appointments() {
 
     }, [
       appointments,
+      doctorFilter,
       query,
+      selectedDoctor,
       statusFilter
     ]);
 
   const confirmedCount =
-    appointments.filter((appointment) =>
+    filteredAppointments.filter((appointment) =>
       String(appointment.status || "")
         .toLowerCase()
         .includes("book")
@@ -312,7 +387,7 @@ export default function Appointments() {
 
   const doctorCount =
     new Set(
-      appointments
+      filteredAppointments
         .map((appointment) => appointment.doctor_name)
         .filter(Boolean)
     ).size;
@@ -343,6 +418,7 @@ export default function Appointments() {
             {
               params: {
                 clinic_id: clinicId,
+                doctor_id: manualForm.doctor_id || undefined,
                 doctor_name: manualForm.doctor_name,
                 appointment_date: manualForm.appointment_date
               }
@@ -369,6 +445,7 @@ export default function Appointments() {
     }, [
       clinicId,
       manualForm.appointment_date,
+      manualForm.doctor_id,
       manualForm.doctor_name
     ]);
 
@@ -378,7 +455,16 @@ export default function Appointments() {
       setManualForm((current) => ({
         ...current,
         [field]: value,
-        ...(field === "doctor_name" || field === "appointment_date"
+        ...(field === "doctor_id"
+          ? {
+              doctor_name:
+                doctorOptions.find((doctor) => doctor.id === value)
+                  ?.doctor_name || ""
+            }
+          : {}),
+        ...(field === "doctor_name"
+          || field === "doctor_id"
+          || field === "appointment_date"
           ? {
               appointment_time: ""
             }
@@ -387,12 +473,13 @@ export default function Appointments() {
 
       if (
         field === "doctor_name"
+        || field === "doctor_id"
         || field === "appointment_date"
       ) {
 
         setManualSlots([]);
       }
-    }, []);
+    }, [doctorOptions]);
 
   const createManualAppointment =
     useCallback(async (event) => {
@@ -413,6 +500,7 @@ export default function Appointments() {
         );
 
         setManualForm({
+          doctor_id: shifts[0]?.doctor_id || "",
           doctor_name: shifts[0]?.doctor_name || "",
           appointment_date: "",
           appointment_time: "",
@@ -524,7 +612,7 @@ export default function Appointments() {
         <StatCard
           icon={CalendarCheck}
           label="Total appointments"
-          value={appointments.length}
+          value={filteredAppointments.length}
           tone="slate"
         />
         <StatCard
@@ -536,7 +624,11 @@ export default function Appointments() {
         <StatCard
           icon={Stethoscope}
           label="Doctors"
-          value={doctorCount}
+          value={
+            doctorFilter === "all"
+              ? doctorCount
+              : 1
+          }
           tone="cyan"
         />
       </div>
@@ -580,22 +672,22 @@ export default function Appointments() {
           <div className="grid gap-3 rounded-lg border border-slate-100 bg-slate-50/60 p-4 sm:grid-cols-2">
             <Field label="Doctor">
               <select
-                value={manualForm.doctor_name}
+                value={manualForm.doctor_id || manualForm.doctor_name}
                 onChange={(event) =>
                   updateManualForm(
-                    "doctor_name",
+                    "doctor_id",
                     event.target.value
                   )
                 }
                 className={inputClass}
                 required
               >
-                {shifts.map((shift) => (
+                {doctorOptions.map((doctor) => (
                   <option
-                    key={shift.id}
-                    value={shift.doctor_name}
+                    key={doctor.id}
+                    value={doctor.id}
                   >
-                    {shift.doctor_name}
+                    {doctor.doctor_name}
                   </option>
                 ))}
               </select>
@@ -793,6 +885,28 @@ export default function Appointments() {
                 className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
               />
             </label>
+
+            <select
+              value={doctorFilter}
+              onChange={(event) =>
+                setDoctorFilter(
+                  event.target.value
+                )
+              }
+              className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+            >
+              <option value="all">
+                All doctors
+              </option>
+              {doctorOptions.map((doctor) => (
+                <option
+                  key={doctor.id}
+                  value={doctor.id}
+                >
+                  {doctor.doctor_name}
+                </option>
+              ))}
+            </select>
 
             <select
               value={statusFilter}
