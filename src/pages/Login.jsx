@@ -44,7 +44,7 @@ export default function Login() {
 
     if (loggedIn) {
 
-      navigate("/slots");
+      navigate("/dashboard");
     }
 
   }, [navigate]);
@@ -213,7 +213,7 @@ export default function Login() {
         setTimeout(() => {
 
           navigate(
-            "/slots"
+            "/dashboard"
           );
 
         }, 500);
@@ -248,7 +248,7 @@ export default function Login() {
       setTimeout(() => {
 
         navigate(
-          "/slots"
+          "/dashboard"
         );
 
       }, 500);
@@ -482,7 +482,7 @@ export default function Login() {
                 className="animate-spin"
               />
             )}
-            {loading ? "Sending OTP" : "Send OTP"}
+            {loading ? "Logging in" : "Login"}
           </button>
         </form>
       </section>

@@ -32,8 +32,23 @@ export default function Sidebar() {
     },
 
     {
+      name: "Doctors",
+      path: "/doctors"
+    },
+
+    {
       name: "Profile",
       path: "/profile"
+    },
+
+    {
+      name: "Security",
+      path: "/settings/security"
+    },
+
+    {
+      name: "Appearance",
+      path: "/settings/appearance"
     }
   ];
 

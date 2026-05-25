@@ -143,6 +143,9 @@ export default function Appointments() {
   const [shifts, setShifts] =
     useState([]);
 
+  const [doctors, setDoctors] =
+    useState([]);
+
   const [loading, setLoading] =
     useState(true);
 
@@ -193,7 +196,8 @@ export default function Appointments() {
 
         const [
           appointmentsResponse,
-          shiftsResponse
+          shiftsResponse,
+          doctorsResponse
         ] = await Promise.all([
           axios.get(
             apiUrl("/appointments"),
@@ -205,6 +209,14 @@ export default function Appointments() {
           ),
           axios.get(
             apiUrl(`/shifts/${clinicId}`)
+          ),
+          axios.get(
+            apiUrl("/doctors"),
+            {
+              params: {
+                clinic_id: clinicId
+              }
+            }
           )
         ]);
 
@@ -223,12 +235,28 @@ export default function Appointments() {
           activeShifts
         );
 
+        const activeDoctors =
+          Array.isArray(doctorsResponse.data)
+            ? doctorsResponse.data.filter((doctor) => doctor.is_active !== false)
+            : [];
+
+        setDoctors(
+          activeDoctors
+        );
+
         setManualForm((current) => ({
           ...current,
           doctor_id:
-            current.doctor_id || activeShifts[0]?.doctor_id || "",
+            current.doctor_id
+            || activeDoctors[0]?.id
+            || activeShifts[0]?.doctor_id
+            || "",
           doctor_name:
-            current.doctor_name || activeShifts[0]?.doctor_name || ""
+            current.doctor_name
+            || activeDoctors[0]?.name
+            || activeDoctors[0]?.doctor_name
+            || activeShifts[0]?.doctor_name
+            || ""
         }));
 
       } catch (error) {
@@ -273,7 +301,26 @@ export default function Appointments() {
   const doctorOptions =
     useMemo(() => {
 
-      const doctors = new Map();
+      const doctorMap = new Map();
+
+      doctors.forEach((doctor) => {
+
+        const id =
+          doctor.id
+            ? String(doctor.id)
+            : doctor.doctor_name || doctor.name;
+
+        if (!id || doctorMap.has(id)) {
+
+          return;
+        }
+
+        doctorMap.set(id, {
+          id,
+          doctor_id: doctor.id || "",
+          doctor_name: doctor.doctor_name || doctor.name
+        });
+      });
 
       shifts.forEach((shift) => {
 
@@ -282,12 +329,12 @@ export default function Appointments() {
             ? String(shift.doctor_id)
             : shift.doctor_name;
 
-        if (!id || doctors.has(id)) {
+        if (!id || doctorMap.has(id)) {
 
           return;
         }
 
-        doctors.set(id, {
+        doctorMap.set(id, {
           id,
           doctor_id: shift.doctor_id || "",
           doctor_name: shift.doctor_name
@@ -301,12 +348,12 @@ export default function Appointments() {
             ? String(appointment.doctor_id)
             : appointment.doctor_name;
 
-        if (!id || doctors.has(id)) {
+        if (!id || doctorMap.has(id)) {
 
           return;
         }
 
-        doctors.set(id, {
+        doctorMap.set(id, {
           id,
           doctor_id: appointment.doctor_id || "",
           doctor_name: appointment.doctor_name
@@ -314,17 +361,23 @@ export default function Appointments() {
       });
 
       return Array.from(
-        doctors.values()
+        doctorMap.values()
       );
 
     }, [
       appointments,
+      doctors,
       shifts
     ]);
 
+  const effectiveDoctorFilter =
+    doctorOptions.length === 1
+      ? doctorOptions[0].id
+      : doctorFilter;
+
   const selectedDoctor =
     doctorOptions.find((doctor) =>
-      doctor.id === doctorFilter
+      doctor.id === effectiveDoctorFilter
     );
 
   const filteredAppointments =
@@ -340,8 +393,8 @@ export default function Appointments() {
           || appointment.status === statusFilter;
 
         const matchesDoctor =
-          doctorFilter === "all"
-          || String(appointment.doctor_id || "") === doctorFilter
+          effectiveDoctorFilter === "all"
+          || String(appointment.doctor_id || "") === effectiveDoctorFilter
           || (
             !appointment.doctor_id
             && selectedDoctor?.doctor_name
@@ -372,7 +425,7 @@ export default function Appointments() {
 
     }, [
       appointments,
-      doctorFilter,
+      effectiveDoctorFilter,
       query,
       selectedDoctor,
       statusFilter
@@ -500,8 +553,8 @@ export default function Appointments() {
         );
 
         setManualForm({
-          doctor_id: shifts[0]?.doctor_id || "",
-          doctor_name: shifts[0]?.doctor_name || "",
+          doctor_id: doctorOptions[0]?.doctor_id || shifts[0]?.doctor_id || "",
+          doctor_name: doctorOptions[0]?.doctor_name || shifts[0]?.doctor_name || "",
           appointment_date: "",
           appointment_time: "",
           patient_name: "",
@@ -529,6 +582,7 @@ export default function Appointments() {
       }
     }, [
       clinicId,
+      doctorOptions,
       fetchAppointments,
       manualForm,
       shifts
@@ -625,7 +679,7 @@ export default function Appointments() {
           icon={Stethoscope}
           label="Doctors"
           value={
-            doctorFilter === "all"
+            effectiveDoctorFilter === "all"
               ? doctorCount
               : 1
           }
@@ -679,9 +733,15 @@ export default function Appointments() {
                     event.target.value
                   )
                 }
+                disabled={doctorOptions.length <= 1}
                 className={inputClass}
                 required
               >
+                {doctorOptions.length === 0 && (
+                  <option value="">
+                    No doctors configured
+                  </option>
+                )}
                 {doctorOptions.map((doctor) => (
                   <option
                     key={doctor.id}
@@ -886,27 +946,48 @@ export default function Appointments() {
               />
             </label>
 
-            <select
-              value={doctorFilter}
-              onChange={(event) =>
-                setDoctorFilter(
-                  event.target.value
-                )
-              }
-              className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
-            >
-              <option value="all">
-                All doctors
-              </option>
-              {doctorOptions.map((doctor) => (
-                <option
-                  key={doctor.id}
-                  value={doctor.id}
-                >
-                  {doctor.doctor_name}
-                </option>
-              ))}
-            </select>
+            <label className="flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 focus-within:border-teal-600 focus-within:ring-4 focus-within:ring-teal-100">
+              <Stethoscope
+                size={17}
+                className="shrink-0 text-slate-400"
+              />
+              <span className="sr-only">
+                Viewing doctor
+              </span>
+              <select
+                value={
+                  doctorOptions.length === 1
+                    ? doctorOptions[0].id
+                    : effectiveDoctorFilter
+                }
+                onChange={(event) =>
+                  setDoctorFilter(
+                    event.target.value
+                  )
+                }
+                disabled={doctorOptions.length <= 1}
+                className="min-h-10 bg-transparent text-sm font-medium text-slate-700 outline-none disabled:cursor-not-allowed disabled:text-slate-500"
+              >
+                {doctorOptions.length > 1 && (
+                  <option value="all">
+                    All doctors
+                  </option>
+                )}
+                {doctorOptions.length === 0 && (
+                  <option value="all">
+                    No doctors configured
+                  </option>
+                )}
+                {doctorOptions.map((doctor) => (
+                  <option
+                    key={doctor.id}
+                    value={doctor.id}
+                  >
+                    {doctor.doctor_name}
+                  </option>
+                ))}
+              </select>
+            </label>
 
             <select
               value={statusFilter}

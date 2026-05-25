@@ -1,7 +1,13 @@
 import {
   CalendarDays,
+  ChevronDown,
   ChevronRight,
+  House,
   LogOut,
+  Palette,
+  Settings,
+  ShieldCheck,
+  Stethoscope,
   Users,
   Clock3
   ,
@@ -51,6 +57,11 @@ export default function Layout({
 
   const navItems = [
     {
+      icon: House,
+      name: "Dashboard",
+      path: "/dashboard"
+    },
+    {
       icon: Clock3,
       name: "Schedule",
       path: "/slots"
@@ -66,11 +77,39 @@ export default function Layout({
       path: "/patients"
     },
     {
+      icon: Stethoscope,
+      name: "Doctors",
+      path: "/doctors"
+    }
+  ];
+
+  const settingsItems = [
+    {
       icon: UserRound,
       name: "Profile",
       path: "/profile"
+    },
+    {
+      icon: ShieldCheck,
+      name: "Security",
+      path: "/settings/security"
+    },
+    {
+      icon: Palette,
+      name: "Appearance",
+      path: "/settings/appearance"
     }
   ];
+
+  const mobileItems = [
+    ...navItems,
+    ...settingsItems
+  ];
+
+  const settingsActive =
+    settingsItems.some((item) =>
+      location.pathname === item.path
+    );
 
   const theme =
     localStorage.getItem(
@@ -98,7 +137,7 @@ export default function Layout({
         <aside className="hidden w-72 shrink-0 border-r border-slate-200 bg-white/90 px-4 py-5 shadow-sm shadow-slate-950/3 backdrop-blur-xl lg:flex lg:flex-col lg:justify-between">
           <div>
             <Link
-              to="/slots"
+              to="/dashboard"
               className="flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-slate-50"
             >
               <img
@@ -142,6 +181,55 @@ export default function Layout({
                   </Link>
                 );
               })}
+
+              <details
+                className="group"
+                open={settingsActive}
+              >
+                <summary className={`flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-lg px-3 text-sm font-medium transition ${
+                  settingsActive
+                    ? "bg-slate-100 text-slate-950"
+                    : "text-slate-600 hover:bg-teal-50 hover:text-slate-950"
+                }`}
+                >
+                  <Settings size={18} />
+                  <span className="flex-1">
+                    Settings
+                  </span>
+                  <ChevronDown
+                    size={16}
+                    className="transition group-open:rotate-180"
+                  />
+                </summary>
+
+                <div className="mt-1 space-y-1 pl-6">
+                  {settingsItems.map((item) => {
+                    const Icon = item.icon;
+                    const active =
+                      location.pathname === item.path;
+
+                    return (
+                      <Link
+                        key={item.path}
+                        to={item.path}
+                        className={`flex min-h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium transition ${
+                          active
+                            ? "bg-slate-950 text-white shadow-lg shadow-slate-950/10"
+                            : "text-slate-600 hover:bg-teal-50 hover:text-slate-950"
+                        }`}
+                      >
+                        <Icon size={17} />
+                        <span className="flex-1">
+                          {item.name}
+                        </span>
+                        {active && (
+                          <ChevronRight size={15} />
+                        )}
+                      </Link>
+                    );
+                  })}
+                </div>
+              </details>
             </nav>
           </div>
 
@@ -194,8 +282,8 @@ export default function Layout({
               </button>
             </div>
 
-            <nav className="mt-3 grid grid-cols-4 gap-2">
-              {navItems.map((item) => {
+            <nav className="mt-3 flex gap-2 overflow-x-auto pb-1">
+              {mobileItems.map((item) => {
                 const Icon = item.icon;
                 const active =
                   location.pathname === item.path;
@@ -204,7 +292,7 @@ export default function Layout({
                   <Link
                     key={item.path}
                     to={item.path}
-                    className={`flex min-h-10 items-center justify-center gap-1.5 rounded-lg text-xs font-semibold ${
+                    className={`flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold ${
                       active
                         ? "bg-slate-950 text-white"
                         : "bg-slate-100 text-slate-600"

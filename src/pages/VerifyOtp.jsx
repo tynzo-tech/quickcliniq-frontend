@@ -40,7 +40,7 @@ export default function VerifyOtp() {
 
     if (loggedIn) {
 
-      navigate("/slots");
+      navigate("/dashboard");
     }
 
   }, [navigate]);
@@ -146,7 +146,7 @@ export default function VerifyOtp() {
         setTimeout(() => {
 
           navigate(
-            "/slots"
+            "/dashboard"
           );
 
         }, 1000);

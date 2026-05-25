@@ -10,7 +10,8 @@ import {
   Clock,
   X,
   Loader2,
-  Power,
+  Pencil,
+  Plus,
   Trash2
 } from "lucide-react";
 
@@ -20,7 +21,6 @@ import {
   deleteUnavailableTime,
   getShifts,
   getUnavailableTimes,
-  toggleShift,
   updateShift
 } from "../services/slotApi";
 
@@ -264,6 +264,112 @@ function getNotificationStatus(
 }
 
 
+function formatDateBadge(
+  value
+) {
+
+  if (!value) {
+
+    return {
+      day: "--",
+      month: "---",
+      label: "Date not set"
+    };
+  }
+
+  const date =
+    new Date(
+      `${value}T00:00:00`
+    );
+
+  if (Number.isNaN(date.getTime())) {
+
+    return {
+      day: "--",
+      month: "---",
+      label: value
+    };
+  }
+
+  return {
+    day: new Intl.DateTimeFormat(
+      "en-IN",
+      {
+        day: "2-digit"
+      }
+    ).format(date),
+    month: new Intl.DateTimeFormat(
+      "en-IN",
+      {
+        month: "short"
+      }
+    ).format(date).toUpperCase(),
+    label: new Intl.DateTimeFormat(
+      "en-IN",
+      {
+        weekday: "long",
+        day: "2-digit",
+        month: "short",
+        year: "numeric"
+      }
+    ).format(date)
+  };
+}
+
+
+function datePart(
+  value
+) {
+
+  return String(value || "")
+    .split(/[T ]/)[0];
+}
+
+
+function timePart(
+  value
+) {
+
+  const raw =
+    String(value || "")
+      .split(/[T ]/)[1]
+      ?.slice(0, 5);
+
+  return raw || "";
+}
+
+
+function Modal({
+  title,
+  children,
+  onClose
+}) {
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/30 px-4 py-6">
+      <section className="max-h-[92vh] w-full max-w-xl overflow-y-auto rounded-lg bg-white shadow-2xl shadow-slate-950/20">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4">
+          <h2 className="text-lg font-semibold text-slate-950">
+            {title}
+          </h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+            aria-label="Close"
+          >
+            <X size={18} />
+          </button>
+        </div>
+        <div className="p-5">
+          {children}
+        </div>
+      </section>
+    </div>
+  );
+}
+
+
 export default function ShiftManagement() {
 
   const clinic = useMemo(
@@ -300,6 +406,12 @@ export default function ShiftManagement() {
 
   const [notificationResults, setNotificationResults] =
     useState([]);
+
+  const [showShiftModal, setShowShiftModal] =
+    useState(false);
+
+  const [showBlockModal, setShowBlockModal] =
+    useState(false);
 
   const [formData, setFormData] =
     useState({
@@ -415,9 +527,17 @@ export default function ShiftManagement() {
 
   const handleVacationChange = (event) => {
 
+    const nextValue =
+      event.target.value;
+
     setVacationData({
       ...vacationData,
-      [event.target.name]: event.target.value
+      [event.target.name]: nextValue,
+      ...(event.target.name === "start_date"
+        ? {
+            end_date: nextValue
+          }
+        : {})
     });
   };
 
@@ -525,6 +645,7 @@ export default function ShiftManagement() {
           ? "Schedule updated."
           : "Schedule created."
       );
+      setShowShiftModal(false);
 
     } catch (error) {
 
@@ -539,37 +660,6 @@ export default function ShiftManagement() {
     } finally {
 
       setSavingShift(false);
-    }
-  };
-
-
-  const handleToggle =
-  async (shiftId) => {
-
-    try {
-
-      setPendingActionId(
-        `shift-${shiftId}`
-      );
-      setError("");
-      setSuccess("");
-
-      await toggleShift(shiftId);
-      await loadSchedule();
-
-    } catch (error) {
-
-      console.log(error);
-      setError(
-        getErrorMessage(
-          error,
-          "Failed to update shift"
-        )
-      );
-
-    } finally {
-
-      setPendingActionId(null);
     }
   };
 
@@ -638,6 +728,7 @@ export default function ShiftManagement() {
           ? `Vacation blocked. ${result.conflicts.length} booked appointment needs rescheduling.`
           : "Vacation blocked."
       );
+      setShowBlockModal(false);
 
     } catch (error) {
 
@@ -694,16 +785,16 @@ export default function ShiftManagement() {
 
     <Layout
       title="Schedule"
-      subtitle={`Manage shifts, breaks, and vacation blocks for ${clinic?.doctor_name || "your doctor"}.`}
-      actions={currentShift && (
-        <span className={`inline-flex min-h-10 items-center rounded-lg px-3 text-sm font-semibold ${
-          currentShift.is_active
-            ? "bg-teal-50 text-teal-700"
-            : "bg-slate-100 text-slate-600"
-        }`}
+      subtitle="Manage your clinic hours and block unavailable times."
+      actions={(
+        <button
+          type="button"
+          onClick={() => setShowBlockModal(true)}
+          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-teal-700 px-4 text-sm font-semibold text-white transition hover:bg-teal-800"
         >
-          {currentShift.is_active ? "Active schedule" : "Inactive schedule"}
-        </span>
+          <Plus size={16} />
+          Block Time
+        </button>
       )}
     >
 
@@ -726,176 +817,60 @@ export default function ShiftManagement() {
             </div>
           )}
 
-          <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-            <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-5 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-slate-800">
-                  <Clock size={19} />
+          <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-teal-50 text-teal-700">
+                  <Clock size={21} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-950">
-                    Shift hours
+                  <h2 className="text-base font-semibold text-slate-950">
+                    Current Working Hours
                   </h2>
-                  <p className="text-sm text-slate-500">
-                    Edit clinic working hours and optional break time.
+                  <p className="mt-1 text-sm font-medium text-slate-600">
+                    {currentShift?.working_days || formData.working_days.join(", ")} · {formatIstTime(formData.start_time).replace(" IST", "")} - {formatIstTime(formData.end_time).replace(" IST", "")}
                   </p>
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <TimeSelect
-                  label="Start"
-                  name="start_time"
-                  value={formData.start_time}
-                  onChange={handleChange}
-                />
-
-                <TimeSelect
-                  label="End"
-                  name="end_time"
-                  value={formData.end_time}
-                  onChange={handleChange}
-                />
-
-                <TimeSelect
-                  label="Break start"
-                  name="break_start"
-                  value={formData.break_start}
-                  onChange={handleChange}
-                  optional
-                />
-
-                <TimeSelect
-                  label="Break end"
-                  name="break_end"
-                  value={formData.break_end}
-                  onChange={handleChange}
-                  optional
-                />
-
-                <label className="block">
-                  <span className="text-sm font-medium text-slate-700">
-                    Slot duration
+                  <span className="mt-2 inline-flex rounded-md bg-teal-50 px-2 py-1 text-xs font-semibold text-teal-700">
+                    {formData.slot_duration} min slots
                   </span>
-                  <input
-                    type="number"
-                    name="slot_duration"
-                    min="1"
-                    max="240"
-                    value={formData.slot_duration}
-                    onChange={handleChange}
-                    className="mt-2 min-h-11 w-full rounded-lg border border-slate-300 px-3 outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
-                  />
-                </label>
-
-                <button
-                  type="button"
-                  onClick={handleAddShift}
-                  disabled={savingShift}
-                  className="mt-auto inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {savingShift && (
-                    <Loader2
-                      size={17}
-                      className="animate-spin"
-                    />
-                  )}
-                  {savingShift
-                    ? "Saving"
-                    : currentShift
-                      ? "Update schedule"
-                      : "Create schedule"}
-                </button>
+                </div>
               </div>
+              <button
+                type="button"
+                onClick={() => setShowShiftModal(true)}
+                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-teal-200 px-4 text-sm font-semibold text-teal-700 transition hover:bg-teal-50"
+              >
+                <Pencil size={15} />
+                Edit Working Hours
+              </button>
+            </div>
+          </section>
 
-              <div className="mt-5 flex flex-wrap gap-2">
-                {DAYS.map((day) => (
-                  <button
-                    key={day}
-                    type="button"
-                    onClick={() => toggleDay(day)}
-                    className={`min-h-10 rounded-lg px-4 text-sm font-medium transition ${
-                      formData.working_days.includes(day)
-                        ? "bg-slate-950 text-white"
-                        : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                    }`}
-                  >
-                    {day}
-                  </button>
-                ))}
-              </div>
-            </section>
-
-            <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-              <div className="mb-5 flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-teal-50 text-teal-700">
-                  <CalendarOff size={19} />
+          <section className="mt-5 rounded-lg border border-slate-200 bg-white p-6 shadow-sm">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+              <div className="flex items-start gap-4">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-violet-50 text-violet-700">
+                  <CalendarOff size={21} />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold text-slate-950">
-                    Vacation block
+                  <h2 className="text-base font-semibold text-slate-950">
+                    Unavailable Time
                   </h2>
-                  <p className="text-sm text-slate-500">
-                    Block unavailable dates from generated slots.
+                  <p className="mt-1 text-sm text-slate-500">
+                    Times you are not available. Slots will not be generated.
                   </p>
                 </div>
               </div>
-
-              <div className="grid gap-4 sm:grid-cols-2">
-                <input
-                  type="date"
-                  name="start_date"
-                  value={vacationData.start_date}
-                  onChange={handleVacationChange}
-                  className="min-h-11 rounded-lg border border-slate-300 px-3 outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
-                />
-
-                <TimeSelect
-                  label="Start time"
-                  name="start_time"
-                  value={vacationData.start_time}
-                  onChange={handleVacationChange}
-                />
-
-                <input
-                  type="date"
-                  name="end_date"
-                  value={vacationData.end_date}
-                  onChange={handleVacationChange}
-                  className="min-h-11 rounded-lg border border-slate-300 px-3 outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
-                />
-
-                <TimeSelect
-                  label="End time"
-                  name="end_time"
-                  value={vacationData.end_time}
-                  onChange={handleVacationChange}
-                />
-                <input
-                  type="text"
-                  name="reason"
-                  placeholder="Reason"
-                  value={vacationData.reason}
-                  onChange={handleVacationChange}
-                  className="min-h-11 rounded-lg border border-slate-300 px-3 outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100 sm:col-span-2"
-                />
-                <button
-                  type="button"
-                  onClick={handleAddVacation}
-                  disabled={savingVacation}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-teal-600 px-4 text-sm font-semibold text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60 sm:col-span-2"
-                >
-                  {savingVacation && (
-                    <Loader2
-                      size={17}
-                      className="animate-spin"
-                    />
-                  )}
-                  {savingVacation ? "Blocking" : "Block vacation"}
-                </button>
-              </div>
-            </section>
-          </div>
+              <button
+                type="button"
+                onClick={() => setShowBlockModal(true)}
+                className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-teal-700 px-4 text-sm font-semibold text-white transition hover:bg-teal-800"
+              >
+                <Clock size={15} />
+                Block Time
+              </button>
+            </div>
+          </section>
 
           {vacationConflicts.length > 0 && (
             <section className="mt-6 rounded-lg border border-amber-200 bg-amber-50 shadow-sm">
@@ -904,7 +879,7 @@ export default function ShiftManagement() {
                   Appointments to reschedule
                 </h2>
                 <p className="mt-1 text-sm text-amber-800">
-                  These booked appointments overlap the vacation block. WhatsApp reschedule messages were attempted automatically.
+                  These booked appointments overlap the blocked time. WhatsApp reschedule messages were attempted automatically.
                 </p>
               </div>
               <div className="divide-y divide-amber-200">
@@ -952,129 +927,262 @@ export default function ShiftManagement() {
 
           <section className="mt-6 rounded-lg border border-slate-200 bg-white shadow-sm">
             <div className="border-b border-slate-100 px-5 py-4">
-              <h2 className="text-lg font-semibold text-slate-950">
-                Current schedule
-              </h2>
-            </div>
-
-            {shifts.length === 0 ? (
-              <div className="px-5 py-10 text-center text-sm text-slate-500">
-                No schedule saved yet.
-              </div>
-            ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-left text-sm">
-                  <thead className="bg-slate-50 text-slate-600">
-                    <tr>
-                      <th className="px-5 py-3">Doctor</th>
-                      <th className="px-5 py-3">Days</th>
-                      <th className="px-5 py-3">Hours</th>
-                      <th className="px-5 py-3">Break</th>
-                      <th className="px-5 py-3">Duration</th>
-                      <th className="px-5 py-3">Status</th>
-                      <th className="px-5 py-3">Action</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {shifts.map((shift) => (
-                      <tr
-                        key={shift.id}
-                        className="border-t border-slate-100"
-                      >
-                        <td className="px-5 py-4 font-medium text-slate-950">
-                          {shift.doctor_name}
-                        </td>
-                        <td className="px-5 py-4">{shift.working_days}</td>
-                        <td className="px-5 py-4">{formatIstTime(shift.start_time)} - {formatIstTime(shift.end_time)}</td>
-                        <td className="px-5 py-4">
-                          {shift.break_start && shift.break_end
-                            ? `${formatIstTime(shift.break_start)} - ${formatIstTime(shift.break_end)}`
-                            : "No break"}
-                        </td>
-                        <td className="px-5 py-4">{shift.slot_duration} min</td>
-                        <td className="px-5 py-4">
-                          <span className={`rounded-lg px-2.5 py-1 text-xs font-medium ${
-                            shift.is_active
-                              ? "bg-teal-50 text-teal-700"
-                              : "bg-slate-100 text-slate-600"
-                          }`}
-                          >
-                            {shift.is_active ? "Active" : "Inactive"}
-                          </span>
-                        </td>
-                        <td className="px-5 py-4">
-                          <button
-                            type="button"
-                            onClick={() => handleToggle(shift.id)}
-                            disabled={pendingActionId === `shift-${shift.id}`}
-                            className="inline-flex min-h-9 items-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
-                          >
-                            {pendingActionId === `shift-${shift.id}` ? (
-                              <Loader2
-                                size={15}
-                                className="animate-spin"
-                              />
-                            ) : (
-                              <Power size={15} />
-                            )}
-                            {shift.is_active ? "Disable" : "Enable"}
-                          </button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-          </section>
-
-          <section className="mt-6 rounded-lg border border-slate-200 bg-white shadow-sm">
-            <div className="border-b border-slate-100 px-5 py-4">
-              <h2 className="text-lg font-semibold text-slate-950">
-                Vacation and unavailable time
+              <h2 className="text-base font-semibold text-slate-950">
+                Upcoming Unavailable Times
               </h2>
             </div>
 
             {unavailableTimes.length === 0 ? (
               <div className="px-5 py-10 text-center text-sm text-slate-500">
-                No vacation blocks saved.
+                No unavailable times saved.
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
-                {unavailableTimes.map((item) => (
-                  <div
-                    key={item.id}
-                    className="flex flex-col gap-3 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
-                  >
-                    <div>
-                      <p className="font-medium text-slate-950">
-                        {item.reason || "Unavailable"}
-                      </p>
-                      <p className="mt-1 text-sm text-slate-500">
-                        {item.start_datetime} to {item.end_datetime} IST
-                      </p>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleDeleteVacation(item.id)}
-                      disabled={pendingActionId === `vacation-${item.id}`}
-                      className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-red-100 px-3 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-60"
+                {unavailableTimes.map((item) => {
+                  const badge =
+                    formatDateBadge(
+                      datePart(item.start_datetime)
+                    );
+
+                  return (
+                    <div
+                      key={item.id}
+                      className="flex flex-col gap-4 px-5 py-4 sm:flex-row sm:items-center sm:justify-between"
                     >
-                      {pendingActionId === `vacation-${item.id}` ? (
-                        <Loader2
-                          size={15}
-                          className="animate-spin"
-                        />
-                      ) : (
-                        <Trash2 size={15} />
-                      )}
-                      Remove
-                    </button>
-                  </div>
-                ))}
+                      <div className="flex items-center gap-4">
+                        <div className="flex h-14 w-14 flex-col items-center justify-center rounded-lg bg-slate-100 text-slate-700">
+                          <span className="text-sm font-bold">
+                            {badge.day}
+                          </span>
+                          <span className="text-[10px] font-bold uppercase">
+                            {badge.month}
+                          </span>
+                        </div>
+                        <div>
+                          <p className="font-semibold text-slate-950">
+                            {badge.label}
+                          </p>
+                          <p className="mt-1 text-sm text-slate-500">
+                            {formatIstTime(timePart(item.start_datetime)).replace(" IST", "")} - {formatIstTime(timePart(item.end_datetime)).replace(" IST", "")}
+                            {item.reason ? ` · ${item.reason}` : ""}
+                          </p>
+                        </div>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteVacation(item.id)}
+                        disabled={pendingActionId === `vacation-${item.id}`}
+                        className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-red-100 px-3 text-sm font-medium text-red-700 transition hover:bg-red-50 disabled:opacity-60"
+                        aria-label="Remove unavailable time"
+                      >
+                        {pendingActionId === `vacation-${item.id}` ? (
+                          <Loader2
+                            size={15}
+                            className="animate-spin"
+                          />
+                        ) : (
+                          <Trash2 size={15} />
+                        )}
+                        Remove
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
             )}
           </section>
+
+          {showShiftModal && (
+            <Modal
+              title="Edit Working Hours"
+              onClose={() => setShowShiftModal(false)}
+            >
+              <div className="space-y-5">
+                <div>
+                  <p className="mb-2 text-sm font-semibold text-slate-700">
+                    Working days
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {DAYS.map((day) => (
+                      <button
+                        key={day}
+                        type="button"
+                        onClick={() => toggleDay(day)}
+                        className={`min-h-9 rounded-lg px-4 text-sm font-semibold transition ${
+                          formData.working_days.includes(day)
+                            ? "bg-teal-700 text-white"
+                            : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                        }`}
+                      >
+                        {day}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <TimeSelect
+                    label="Start time"
+                    name="start_time"
+                    value={formData.start_time}
+                    onChange={handleChange}
+                  />
+                  <TimeSelect
+                    label="End time"
+                    name="end_time"
+                    value={formData.end_time}
+                    onChange={handleChange}
+                  />
+                </div>
+
+                <label className="block">
+                  <span className="text-sm font-semibold text-slate-700">
+                    Slot duration
+                  </span>
+                  <select
+                    name="slot_duration"
+                    value={formData.slot_duration}
+                    onChange={handleChange}
+                    className="mt-2 min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                  >
+                    {[10, 15, 20, 30, 45, 60].map((duration) => (
+                      <option
+                        key={duration}
+                        value={duration}
+                      >
+                        {duration} min
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <div className="rounded-lg border border-slate-200 bg-slate-50 p-4">
+                  <p className="mb-3 text-sm font-semibold text-slate-700">
+                    Break optional
+                  </p>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    <TimeSelect
+                      label="Break start"
+                      name="break_start"
+                      value={formData.break_start}
+                      onChange={handleChange}
+                      optional
+                    />
+                    <TimeSelect
+                      label="Break end"
+                      name="break_end"
+                      value={formData.break_end}
+                      onChange={handleChange}
+                      optional
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowShiftModal(false)}
+                    className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAddShift}
+                    disabled={savingShift}
+                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-teal-700 px-5 text-sm font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {savingShift && (
+                      <Loader2
+                        size={16}
+                        className="animate-spin"
+                      />
+                    )}
+                    Save Changes
+                  </button>
+                </div>
+              </div>
+            </Modal>
+          )}
+
+          {showBlockModal && (
+            <Modal
+              title="Block Time"
+              onClose={() => setShowBlockModal(false)}
+            >
+              <div className="space-y-5">
+                <label className="block">
+                  <span className="text-sm font-semibold text-slate-700">
+                    Date
+                  </span>
+                  <input
+                    type="date"
+                    name="start_date"
+                    value={vacationData.start_date}
+                    onChange={handleVacationChange}
+                    className="mt-2 min-h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                  />
+                </label>
+
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <TimeSelect
+                    label="Start time"
+                    name="start_time"
+                    value={vacationData.start_time}
+                    onChange={handleVacationChange}
+                  />
+                  <TimeSelect
+                    label="End time"
+                    name="end_time"
+                    value={vacationData.end_time}
+                    onChange={handleVacationChange}
+                  />
+                </div>
+
+                <label className="block">
+                  <span className="text-sm font-semibold text-slate-700">
+                    Reason optional
+                  </span>
+                  <input
+                    type="text"
+                    name="reason"
+                    placeholder="Personal work"
+                    value={vacationData.reason}
+                    onChange={handleVacationChange}
+                    className="mt-2 min-h-11 w-full rounded-lg border border-slate-300 px-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+                  />
+                </label>
+
+                <div className="rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-600">
+                  The selected time will be blocked and no slots will be generated during this period.
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowBlockModal(false)}
+                    className="inline-flex min-h-10 items-center justify-center rounded-lg border border-slate-200 px-5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleAddVacation}
+                    disabled={savingVacation}
+                    className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-teal-700 px-5 text-sm font-semibold text-white transition hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {savingVacation && (
+                      <Loader2
+                        size={16}
+                        className="animate-spin"
+                      />
+                    )}
+                    Block Time
+                  </button>
+                </div>
+              </div>
+            </Modal>
+          )}
         </>
       )}
 

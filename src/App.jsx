@@ -9,7 +9,11 @@ import QuickCliniqHome from "./pages/QuickCliniqHome";
 import Login from "./pages/Login";
 import Privacy from "./pages/Privacy";
 import ChangePassword from "./pages/ChangePassword";
+import Appearance from "./pages/Appearance";
+import Dashboard from "./pages/Dashboard";
+import Doctors from "./pages/Doctors";
 import Profile from "./pages/Profile";
+import Security from "./pages/Security";
 import VerifyOtp from "./pages/VerifyOtp";
 
 import ShiftManagement from "./slots/pages/ShiftManagement";
@@ -66,6 +70,17 @@ function App() {
         {/* DASHBOARD */}
 
         <Route
+        path="/dashboard"
+        element={
+          <ProtectedRoute>
+
+            <Dashboard />
+
+          </ProtectedRoute>
+        }
+      />
+
+        <Route
         path="/slots"
         element={
         <ProtectedRoute>
@@ -99,11 +114,44 @@ function App() {
       />
 
         <Route
+        path="/doctors"
+        element={
+          <ProtectedRoute>
+
+            <Doctors />
+
+          </ProtectedRoute>
+        }
+      />
+
+        <Route
         path="/profile"
         element={
           <ProtectedRoute>
 
             <Profile />
+
+          </ProtectedRoute>
+        }
+      />
+
+        <Route
+        path="/settings/security"
+        element={
+          <ProtectedRoute>
+
+            <Security />
+
+          </ProtectedRoute>
+        }
+      />
+
+        <Route
+        path="/settings/appearance"
+        element={
+          <ProtectedRoute>
+
+            <Appearance />
 
           </ProtectedRoute>
         }
