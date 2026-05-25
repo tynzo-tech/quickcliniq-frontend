@@ -8,6 +8,7 @@ import {
 import QuickCliniqHome from "./pages/QuickCliniqHome";
 import Login from "./pages/Login";
 import Privacy from "./pages/Privacy";
+import ChangePassword from "./pages/ChangePassword";
 import VerifyOtp from "./pages/VerifyOtp";
 
 import ShiftManagement from "./slots/pages/ShiftManagement";
@@ -50,16 +51,14 @@ function App() {
           element={<Privacy />}
         />
 
-        {/*
         <Route
-          path="/verify_otp"
-          element={<VerifyOtp />}
+          path="/change-password"
+          element={<ChangePassword />}
         />
-        */}
 
         <Route
           path="/verify_otp"
-          element={<Navigate to="/slots" replace />}
+          element={<VerifyOtp />}
         />
 
 

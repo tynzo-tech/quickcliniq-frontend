@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useState
@@ -99,22 +100,16 @@ function TimeSelect({
 }) {
 
   const [enabled, setEnabled] =
-    useState(Boolean(value));
+    useState(false);
 
   const [open, setOpen] =
     useState(false);
-
-  useEffect(() => {
-
-    setEnabled(Boolean(value));
-
-  }, [value]);
 
   const currentValue =
     value || "09:00";
 
   const isActive =
-    !optional || enabled;
+    !optional || enabled || Boolean(value);
 
   return (
     <div className="relative">
@@ -329,15 +324,8 @@ export default function ShiftManagement() {
     shifts[0] || null;
 
 
-  useEffect(() => {
-
-    loadSchedule();
-
-  }, []);
-
-
   const loadSchedule =
-  async () => {
+  useCallback(async () => {
 
     if (!clinic?.id) {
 
@@ -398,7 +386,22 @@ export default function ShiftManagement() {
 
       setInitialLoading(false);
     }
-  };
+  }, [clinic?.id]);
+
+
+  useEffect(() => {
+
+    const timer =
+      window.setTimeout(() => {
+
+        loadSchedule();
+
+      }, 0);
+
+    return () =>
+      window.clearTimeout(timer);
+
+  }, [loadSchedule]);
 
 
   const handleChange = (event) => {
@@ -689,18 +692,20 @@ export default function ShiftManagement() {
 
   return (
 
-    <Layout>
-
-      <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight text-slate-950">
-            Schedule
-          </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            Manage shifts, breaks, and vacation blocks for {clinic?.doctor_name || "your doctor"}.
-          </p>
-        </div>
-      </div>
+    <Layout
+      title="Schedule"
+      subtitle={`Manage shifts, breaks, and vacation blocks for ${clinic?.doctor_name || "your doctor"}.`}
+      actions={currentShift && (
+        <span className={`inline-flex min-h-10 items-center rounded-lg px-3 text-sm font-semibold ${
+          currentShift.is_active
+            ? "bg-teal-50 text-teal-700"
+            : "bg-slate-100 text-slate-600"
+        }`}
+        >
+          {currentShift.is_active ? "Active schedule" : "Inactive schedule"}
+        </span>
+      )}
+    >
 
       {initialLoading ? (
         <div className="rounded-lg border border-slate-200 bg-white p-10 text-center text-slate-600 shadow-sm">

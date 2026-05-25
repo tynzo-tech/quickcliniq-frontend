@@ -1,5 +1,6 @@
 import {
   CalendarDays,
+  ChevronRight,
   LogOut,
   Users,
   Clock3
@@ -32,7 +33,10 @@ function getStoredClinic() {
 
 
 export default function Layout({
-  children
+  children,
+  title,
+  subtitle,
+  actions
 }) {
 
   const location =
@@ -79,7 +83,7 @@ export default function Layout({
 
     <div className="min-h-screen bg-slate-50 text-slate-950">
       <div className="flex min-h-screen">
-        <aside className="hidden w-72 shrink-0 border-r border-slate-200 bg-white/90 px-4 py-5 lg:flex lg:flex-col lg:justify-between">
+        <aside className="hidden w-72 shrink-0 border-r border-slate-200 bg-white/90 px-4 py-5 shadow-sm shadow-slate-950/3 backdrop-blur-xl lg:flex lg:flex-col lg:justify-between">
           <div>
             <Link
               to="/slots"
@@ -112,12 +116,17 @@ export default function Layout({
                     to={item.path}
                     className={`flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition ${
                       active
-                        ? "bg-slate-950 text-white shadow-sm"
-                        : "text-slate-600 hover:bg-slate-100 hover:text-slate-950"
+                        ? "bg-slate-950 text-white shadow-lg shadow-slate-950/10"
+                        : "text-slate-600 hover:bg-teal-50 hover:text-slate-950"
                     }`}
                   >
                     <Icon size={18} />
-                    {item.name}
+                    <span className="flex-1">
+                      {item.name}
+                    </span>
+                    {active && (
+                      <ChevronRight size={16} />
+                    )}
                   </Link>
                 );
               })}
@@ -137,7 +146,7 @@ export default function Layout({
             <button
               type="button"
               onClick={handleLogout}
-              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 hover:text-slate-950"
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-red-100 hover:bg-red-50 hover:text-red-700"
             >
               <LogOut size={17} />
               Logout
@@ -148,18 +157,25 @@ export default function Layout({
         <div className="flex min-w-0 flex-1 flex-col">
           <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/85 px-4 py-3 backdrop-blur-xl lg:hidden">
             <div className="flex items-center justify-between gap-3">
-              <div className="min-w-0">
+              <div className="flex min-w-0 items-center gap-3">
+                <img
+                  src={logo}
+                  alt="QuickCliniq"
+                  className="h-10 w-10 rounded-lg object-contain"
+                />
+                <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-slate-950">
                   {clinic?.name || "QuickCliniq"}
                 </p>
                 <p className="truncate text-xs text-slate-500">
                   {displayPhone}
                 </p>
+                </div>
               </div>
               <button
                 type="button"
                 onClick={handleLogout}
-                className="rounded-lg border border-slate-200 p-2 text-slate-600"
+                className="rounded-lg border border-slate-200 p-2 text-slate-600 transition hover:bg-red-50 hover:text-red-700"
                 aria-label="Logout"
               >
                 <LogOut size={18} />
@@ -192,6 +208,27 @@ export default function Layout({
 
           <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-7xl">
+              {(title || subtitle || actions) && (
+                <div className="mb-6 flex flex-col gap-4 rounded-lg border border-slate-200 bg-white/85 p-5 shadow-xl shadow-slate-950/5 backdrop-blur-xl sm:flex-row sm:items-end sm:justify-between">
+                  <div>
+                    {title && (
+                      <h1 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
+                        {title}
+                      </h1>
+                    )}
+                    {subtitle && (
+                      <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                        {subtitle}
+                      </p>
+                    )}
+                  </div>
+                  {actions && (
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
+                      {actions}
+                    </div>
+                  )}
+                </div>
+              )}
               {children}
             </div>
           </main>

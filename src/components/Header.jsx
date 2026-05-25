@@ -1,5 +1,7 @@
 import { useNavigate } from "react-router-dom";
 
+import logo from "../assets/logo.png";
+
 function Header() {
 
   const navigate = useNavigate();
@@ -39,23 +41,16 @@ function Header() {
             cursor: "pointer",
           }}
         >
-          <div
+          <img
+            src={logo}
+            alt="QuickCliniq"
             style={{
               width: "50px",
               height: "50px",
               borderRadius: "14px",
-              background:
-                "linear-gradient(135deg, #2563eb, #06b6d4)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "#fff",
-              fontSize: "22px",
-              fontWeight: "bold",
+              objectFit: "contain",
             }}
-          >
-            Q
-          </div>
+          />
 
           <div>
             <h2

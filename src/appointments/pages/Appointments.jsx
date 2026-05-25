@@ -1,12 +1,81 @@
 import {
+  useCallback,
   useEffect,
+  useMemo,
   useState
 } from "react";
 
 import axios from "axios";
 
+import {
+  CalendarCheck,
+  Loader2,
+  RefreshCw,
+  Search,
+  Stethoscope
+} from "lucide-react";
+
 import Layout
 from "../../components/Layout";
+
+import {
+  apiUrl
+} from "../../config/api";
+
+
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  tone = "slate"
+}) {
+
+  const tones = {
+    slate: "bg-slate-100 text-slate-800",
+    teal: "bg-teal-50 text-teal-700",
+    cyan: "bg-cyan-50 text-cyan-700"
+  };
+
+  return (
+    <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="flex items-center justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-slate-500">
+            {label}
+          </p>
+          <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+            {value}
+          </p>
+        </div>
+        <div className={`flex h-11 w-11 items-center justify-center rounded-lg ${tones[tone]}`}>
+          <Icon size={21} />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
+function statusClass(status) {
+
+  const normalized =
+    String(status || "").toLowerCase();
+
+  if (
+    normalized.includes("book")
+    || normalized.includes("confirm")
+  ) {
+
+    return "bg-teal-50 text-teal-700";
+  }
+
+  if (normalized.includes("cancel")) {
+
+    return "bg-red-50 text-red-700";
+  }
+
+  return "bg-slate-100 text-slate-700";
+}
 
 
 export default function Appointments() {
@@ -15,10 +84,6 @@ export default function Appointments() {
     localStorage.getItem(
       "clinic_id"
     );
-
-  // ===================================================
-  // STATES
-  // ===================================================
 
   const [appointments, setAppointments] =
     useState([]);
@@ -29,374 +94,290 @@ export default function Appointments() {
   const [error, setError] =
     useState("");
 
+  const [query, setQuery] =
+    useState("");
 
-  // ===================================================
-  // FETCH APPOINTMENTS
-  // ===================================================
+  const [statusFilter, setStatusFilter] =
+    useState("all");
+
+  const fetchAppointments =
+    useCallback(async () => {
+
+      try {
+
+        setLoading(true);
+        setError("");
+
+        const response =
+          await axios.get(
+            apiUrl("/appointments"),
+            {
+              params: {
+                clinic_id: clinicId
+              }
+            }
+          );
+
+        setAppointments(
+          Array.isArray(response.data)
+            ? response.data
+            : []
+        );
+
+      } catch (error) {
+
+        console.log(error);
+
+        setError(
+          error.response?.data?.detail ||
+            "Failed to load appointments"
+        );
+
+      } finally {
+
+        setLoading(false);
+      }
+    }, [clinicId]);
 
   useEffect(() => {
 
-    fetchAppointments();
+    const timer =
+      window.setTimeout(() => {
 
-  }, []);
+        fetchAppointments();
 
+      }, 0);
 
-  const fetchAppointments =
-  async () => {
+    return () =>
+      window.clearTimeout(timer);
 
-    try {
+  }, [fetchAppointments]);
 
-      setLoading(true);
+  const statusOptions =
+    useMemo(() => [
+      "all",
+      ...new Set(
+        appointments
+          .map((appointment) => appointment.status)
+          .filter(Boolean)
+      )
+    ], [appointments]);
 
-      setError("");
+  const filteredAppointments =
+    useMemo(() => {
 
-      const response =
-        await axios.get(
+      const normalizedQuery =
+        query.trim().toLowerCase();
 
-          `${import.meta.env.VITE_API_URL}/appointments`,
+      return appointments.filter((appointment) => {
 
-          {
-            params: {
-              clinic_id: clinicId
-            }
-          }
-        );
+        const matchesStatus =
+          statusFilter === "all"
+          || appointment.status === statusFilter;
 
-      setAppointments(
-        response.data
-      );
+        const searchable = [
+          appointment.patient_name,
+          appointment.phone_number,
+          appointment.doctor_name,
+          appointment.problem,
+          appointment.appointment_date,
+          appointment.appointment_time
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
 
-    } catch (error) {
+        return matchesStatus
+          && (
+            !normalizedQuery
+            || searchable.includes(normalizedQuery)
+          );
+      });
 
-      console.log(error);
+    }, [
+      appointments,
+      query,
+      statusFilter
+    ]);
 
-      setError(
-        error.response?.data?.detail ||
-          "Failed to load appointments"
-      );
+  const confirmedCount =
+    appointments.filter((appointment) =>
+      String(appointment.status || "")
+        .toLowerCase()
+        .includes("book")
+    ).length;
 
-    } finally {
-
-      setLoading(false);
-    }
-  };
-
-
-  // ===================================================
-  // LOADING UI
-  // ===================================================
-
-  if (loading) {
-
-    return (
-
-      <Layout>
-
-        <div
-          className="
-            bg-white
-            rounded-3xl
-            p-10
-            text-center
-            shadow-sm
-          "
-        >
-
-          Loading appointments...
-
-        </div>
-
-      </Layout>
-    );
-  }
-
-
-  // ===================================================
-  // ERROR UI
-  // ===================================================
-
-  if (error) {
-
-    return (
-
-      <Layout>
-
-        <div
-          className="
-            bg-red-50
-            text-red-600
-            rounded-3xl
-            p-10
-            text-center
-            shadow-sm
-          "
-        >
-
-          {error}
-
-        </div>
-
-      </Layout>
-    );
-  }
-
+  const doctorCount =
+    new Set(
+      appointments
+        .map((appointment) => appointment.doctor_name)
+        .filter(Boolean)
+    ).size;
 
   return (
-
     <Layout
       title="Appointments"
-      subtitle="Manage all patient appointments."
+      subtitle="Search, filter, and review patient bookings from one clean workspace."
+      actions={(
+        <button
+          type="button"
+          onClick={fetchAppointments}
+          disabled={loading}
+          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-teal-200 hover:bg-teal-50 hover:text-slate-950 disabled:opacity-60"
+        >
+          <RefreshCw
+            size={16}
+            className={loading ? "animate-spin" : ""}
+          />
+          Refresh
+        </button>
+      )}
     >
-
-      {/* ===================================================
-          STATS
-      =================================================== */}
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-8">
-
-        <div className="bg-white rounded-3xl p-6 shadow-sm">
-
-          <p className="text-gray-500 text-sm">
-            Total Appointments
-          </p>
-
-          <h2 className="text-4xl font-bold mt-2">
-            {appointments.length}
-          </h2>
-
+      {error && (
+        <div className="mb-5 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
         </div>
+      )}
 
-
-        <div className="bg-white rounded-3xl p-6 shadow-sm">
-
-          <p className="text-gray-500 text-sm">
-            Confirmed
-          </p>
-
-          <h2 className="text-4xl font-bold mt-2">
-
-            {
-              appointments.filter(
-                (appointment) =>
-                  appointment.status
-                  === "booked"
-              ).length
-            }
-
-          </h2>
-
-        </div>
-
-
-        <div className="bg-white rounded-3xl p-6 shadow-sm">
-
-          <p className="text-gray-500 text-sm">
-            Doctors
-          </p>
-
-          <h2 className="text-4xl font-bold mt-2">
-
-            {
-              [
-                ...new Set(
-
-                  appointments.map(
-                    (appointment) =>
-                      appointment.doctor_name
-                  )
-                )
-              ].length
-            }
-
-          </h2>
-
-        </div>
-
+      <div className="grid gap-4 md:grid-cols-3">
+        <StatCard
+          icon={CalendarCheck}
+          label="Total appointments"
+          value={appointments.length}
+          tone="slate"
+        />
+        <StatCard
+          icon={CalendarCheck}
+          label="Confirmed"
+          value={confirmedCount}
+          tone="teal"
+        />
+        <StatCard
+          icon={Stethoscope}
+          label="Doctors"
+          value={doctorCount}
+          tone="cyan"
+        />
       </div>
 
-
-      {/* ===================================================
-          EMPTY STATE
-      =================================================== */}
-
-      {
-        appointments.length === 0 && (
-
-          <div
-            className="
-              bg-white
-              rounded-3xl
-              p-12
-              text-center
-              shadow-sm
-              text-gray-500
-            "
-          >
-
-            No appointments yet
-
+      <section className="mt-6 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-4 border-b border-slate-100 p-5 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-950">
+              Appointment list
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Showing {filteredAppointments.length} of {appointments.length} appointments.
+            </p>
           </div>
-        )
-      }
 
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <label className="flex min-h-11 min-w-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 focus-within:border-teal-600 focus-within:ring-4 focus-within:ring-teal-100 sm:w-72">
+              <Search
+                size={17}
+                className="shrink-0 text-slate-400"
+              />
+              <input
+                type="search"
+                placeholder="Search appointments"
+                value={query}
+                onChange={(event) =>
+                  setQuery(
+                    event.target.value
+                  )
+                }
+                className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
+              />
+            </label>
 
-      {/* ===================================================
-          TABLE
-      =================================================== */}
+            <select
+              value={statusFilter}
+              onChange={(event) =>
+                setStatusFilter(
+                  event.target.value
+                )
+              }
+              className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+            >
+              {statusOptions.map((status) => (
+                <option
+                  key={status}
+                  value={status}
+                >
+                  {status === "all" ? "All statuses" : status}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
 
-      {
-        appointments.length > 0 && (
-
-          <div className="bg-white rounded-3xl shadow-sm overflow-hidden">
-
-            <div className="p-6 border-b border-gray-100">
-
-              <h2 className="text-xl font-semibold">
-                Appointment List
-              </h2>
-
-              <p className="text-sm text-gray-500 mt-1">
-                Today's patient appointments.
-              </p>
-
-            </div>
-
-            <div className="overflow-x-auto">
-
-              <table className="w-full text-left">
-
-                <thead className="bg-gray-50 text-sm text-gray-600">
-
-                  <tr>
-
-                    <th className="px-6 py-4">
-                      Patient
-                    </th>
-
-                    <th className="px-6 py-4">
-                      Doctor
-                    </th>
-
-                    <th className="px-6 py-4">
-                      Date
-                    </th>
-
-                    <th className="px-6 py-4">
-                      Time
-                    </th>
-
-                    <th className="px-6 py-4">
-                      Problem
-                    </th>
-
-                    <th className="px-6 py-4">
-                      Status
-                    </th>
-
+        {loading ? (
+          <div className="px-5 py-16 text-center text-sm text-slate-500">
+            <Loader2 className="mx-auto mb-3 animate-spin text-teal-600" />
+            Loading appointments...
+          </div>
+        ) : filteredAppointments.length === 0 ? (
+          <div className="px-5 py-16 text-center">
+            <p className="text-sm font-medium text-slate-700">
+              No appointments found.
+            </p>
+            <p className="mt-1 text-sm text-slate-500">
+              Try changing the search or status filter.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="bg-slate-50 text-slate-600">
+                <tr>
+                  <th className="px-5 py-3 font-semibold">Patient</th>
+                  <th className="px-5 py-3 font-semibold">Doctor</th>
+                  <th className="px-5 py-3 font-semibold">Date</th>
+                  <th className="px-5 py-3 font-semibold">Time</th>
+                  <th className="px-5 py-3 font-semibold">Problem</th>
+                  <th className="px-5 py-3 font-semibold">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredAppointments.map((appointment) => (
+                  <tr
+                    key={appointment.id}
+                    className="border-t border-slate-100 transition hover:bg-slate-50/80"
+                  >
+                    <td className="px-5 py-4">
+                      <p className="font-medium text-slate-950">
+                        {appointment.patient_name || "Patient"}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {appointment.phone_number || "No phone number"}
+                      </p>
+                    </td>
+                    <td className="px-5 py-4 text-slate-700">
+                      {appointment.doctor_name || "Doctor"}
+                    </td>
+                    <td className="px-5 py-4 text-slate-700">
+                      {appointment.appointment_date || "-"}
+                    </td>
+                    <td className="px-5 py-4 text-slate-700">
+                      {appointment.appointment_time || "-"}
+                    </td>
+                    <td className="max-w-xs px-5 py-4 text-slate-600">
+                      <span className="line-clamp-2">
+                        {appointment.problem || "Not provided"}
+                      </span>
+                    </td>
+                    <td className="px-5 py-4">
+                      <span className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${statusClass(appointment.status)}`}>
+                        {appointment.status || "Pending"}
+                      </span>
+                    </td>
                   </tr>
-
-                </thead>
-
-                <tbody>
-
-                  {
-
-                    appointments.map(
-                      (appointment) => (
-
-                        <tr
-                          key={appointment.id}
-                          className="border-t border-gray-100"
-                        >
-
-                          <td className="px-6 py-5 font-medium text-gray-900">
-
-                            <div>
-
-                              <p>
-                                {
-                                  appointment.patient_name
-                                }
-                              </p>
-
-                              <p className="text-sm text-gray-500 mt-1">
-                                {
-                                  appointment.phone_number
-                                }
-                              </p>
-
-                            </div>
-
-                          </td>
-
-                          <td className="px-6 py-5">
-
-                            {
-                              appointment.doctor_name
-                            }
-
-                          </td>
-
-                          <td className="px-6 py-5">
-
-                            {
-                              appointment.appointment_date
-                            }
-
-                          </td>
-
-                          <td className="px-6 py-5">
-
-                            {
-                              appointment.appointment_time
-                            }
-
-                          </td>
-
-                          <td className="px-6 py-5">
-
-                            {
-                              appointment.problem
-                            }
-
-                          </td>
-
-                          <td className="px-6 py-5">
-
-                            <span
-                              className="
-                                px-3
-                                py-1
-                                rounded-full
-                                text-sm
-                                bg-green-100
-                                text-green-700
-                              "
-                            >
-
-                              {
-                                appointment.status
-                              }
-
-                            </span>
-
-                          </td>
-
-                        </tr>
-                      )
-                    )
-                  }
-
-                </tbody>
-
-              </table>
-
-            </div>
-
+                ))}
+              </tbody>
+            </table>
           </div>
-        )
-      }
-
+        )}
+      </section>
     </Layout>
   );
 }

@@ -14,20 +14,21 @@ export default function ProtectedRoute({
       "is_logged_in"
     );
 
-  let clinic = null;
+  const clinic = (() => {
 
-  try {
+    try {
 
-    clinic = JSON.parse(
-      localStorage.getItem(
-        "clinic"
-      )
-    );
+      return JSON.parse(
+        localStorage.getItem(
+          "clinic"
+        )
+      );
 
-  } catch {
+    } catch {
 
-    clinic = null;
-  }
+      return null;
+    }
+  })();
 
   if (
     !isLoggedIn

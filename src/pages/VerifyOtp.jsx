@@ -4,6 +4,12 @@ from "react";
 import { useNavigate }
 from "react-router-dom";
 
+import {
+  apiUrl
+} from "../config/api";
+
+import logo from "../assets/logo.png";
+
 
 export default function VerifyOtp() {
 
@@ -37,7 +43,7 @@ export default function VerifyOtp() {
       navigate("/slots");
     }
 
-  }, []);
+  }, [navigate]);
 
 
   // ===================================================
@@ -79,7 +85,7 @@ export default function VerifyOtp() {
       const response =
         await fetch(
 
-          `${import.meta.env.VITE_API_URL}/verify-otp`,
+          apiUrl("/verify-otp"),
 
           {
 
@@ -174,31 +180,31 @@ export default function VerifyOtp() {
 
   return (
 
-    <div className="min-h-screen flex items-center justify-center bg-gray-100 px-4">
+    <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-8 text-slate-950">
 
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-xl p-8">
+      <div className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-xl shadow-slate-950/5 sm:p-8">
 
         {/* HEADER */}
 
-        <div className="flex items-center gap-4 mb-8">
+        <div className="mb-8 flex items-center gap-3">
 
-          <div className="w-14 h-14 rounded-2xl bg-black text-white flex items-center justify-center text-2xl font-bold">
+          <img
+            src={logo}
+            alt="QuickCliniq"
+            className="h-12 w-12 rounded-lg object-contain"
+          />
 
-            Q
+          <div className="min-w-0">
 
-          </div>
-
-          <div>
-
-            <h1 className="text-3xl font-bold text-gray-900">
+            <h1 className="text-lg font-semibold tracking-tight text-slate-950">
 
               QuickCliniq
 
             </h1>
 
-            <p className="text-gray-500 text-sm">
+            <p className="text-sm text-slate-500">
 
-              OTP Verification
+              Doctor workspace
 
             </p>
 
@@ -209,13 +215,13 @@ export default function VerifyOtp() {
 
         {/* TITLE */}
 
-        <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+        <h2 className="mb-2 text-2xl font-semibold tracking-tight text-slate-950">
 
           Verify OTP
 
         </h2>
 
-        <p className="text-gray-500 mb-6">
+        <p className="mb-6 text-sm text-slate-500">
 
           Enter the OTP sent to your WhatsApp number.
 
@@ -234,7 +240,7 @@ export default function VerifyOtp() {
               event.target.value
             )
           }
-          className="w-full border border-gray-300 rounded-2xl px-4 py-4 text-lg outline-none focus:border-black mb-5"
+          className="mb-5 min-h-12 w-full rounded-lg border border-slate-300 px-4 text-lg outline-none placeholder:text-slate-400 focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
         />
 
 
@@ -244,7 +250,7 @@ export default function VerifyOtp() {
           type="button"
           onClick={handleVerifyOtp}
           disabled={loading}
-          className="w-full bg-black hover:opacity-90 disabled:opacity-50 text-white py-4 rounded-2xl font-semibold transition"
+          className="inline-flex min-h-12 w-full items-center justify-center rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
         >
 
           {
@@ -262,7 +268,7 @@ export default function VerifyOtp() {
 
         {message && (
 
-          <p className="mt-5 text-center text-sm text-gray-600">
+          <p className="mt-5 rounded-lg bg-slate-50 px-4 py-3 text-center text-sm text-slate-700">
 
             {message}
 
@@ -278,7 +284,7 @@ export default function VerifyOtp() {
           onClick={() =>
             navigate("/login")
           }
-          className="w-full mt-5 text-sm text-gray-500 hover:underline"
+          className="mt-5 w-full rounded-lg px-3 py-2 text-sm font-semibold text-slate-500 transition hover:bg-slate-100 hover:text-slate-950"
         >
 
           Back to Login

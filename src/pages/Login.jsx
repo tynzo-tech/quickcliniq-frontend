@@ -2,6 +2,12 @@ import { useEffect, useState } from "react";
 import { Eye, EyeOff, Loader2, LockKeyhole, UserRound } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
+import {
+  apiUrl
+} from "../config/api";
+
+import logo from "../assets/logo.png";
+
 
 export default function Login() {
 
@@ -103,7 +109,7 @@ export default function Login() {
 
       const response =
         await fetch(
-          `${import.meta.env.VITE_API_URL}/login`,
+          apiUrl("/login"),
           {
             method: "POST",
             headers: {
@@ -130,6 +136,39 @@ export default function Login() {
             "Login failed.",
           "error"
         );
+
+        return;
+      }
+
+      if (data.password_must_change) {
+
+        localStorage.removeItem(
+          "is_logged_in"
+        );
+
+        localStorage.removeItem(
+          "clinic"
+        );
+
+        localStorage.setItem(
+          "pending_password_clinic",
+          JSON.stringify(
+            data.clinic
+          )
+        );
+
+        showFormMessage(
+          data.message || "Please change your password to continue.",
+          "info"
+        );
+
+        setTimeout(() => {
+
+          navigate(
+            "/change-password"
+          );
+
+        }, 300);
 
         return;
       }
@@ -252,7 +291,7 @@ export default function Login() {
 
       const response =
         await fetch(
-          `${import.meta.env.VITE_API_URL}/forgot-password`,
+          apiUrl("/forgot-password"),
           {
             method: "POST",
             headers: {
@@ -311,8 +350,20 @@ export default function Login() {
           className="w-full rounded-lg border border-slate-200 bg-white p-6 shadow-xl shadow-slate-950/5 sm:p-8"
         >
           <div>
-            <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-slate-950 text-base font-bold text-white">
-              Q
+            <div className="flex items-center gap-3">
+              <img
+                src={logo}
+                alt="QuickCliniq"
+                className="h-12 w-12 rounded-lg object-contain"
+              />
+              <div className="min-w-0">
+                <p className="text-lg font-semibold tracking-tight text-slate-950">
+                  QuickCliniq
+                </p>
+                <p className="text-sm text-slate-500">
+                  Doctor workspace
+                </p>
+              </div>
             </div>
 
             <h1 className="mt-6 text-2xl font-semibold tracking-tight text-slate-950">
@@ -320,7 +371,7 @@ export default function Login() {
             </h1>
 
             <p className="mt-2 text-sm text-slate-500">
-              QuickCliniq doctor workspace
+              Access your clinic schedule and appointments.
             </p>
           </div>
 
