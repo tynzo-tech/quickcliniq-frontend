@@ -11,6 +11,7 @@ import {
   CalendarCheck,
   Ban,
   Loader2,
+  Plus,
   RefreshCw,
   Search,
   Stethoscope
@@ -89,6 +90,9 @@ export default function Appointments() {
   const [appointments, setAppointments] =
     useState([]);
 
+  const [shifts, setShifts] =
+    useState([]);
+
   const [loading, setLoading] =
     useState(true);
 
@@ -104,6 +108,27 @@ export default function Appointments() {
   const [cancellingId, setCancellingId] =
     useState(null);
 
+  const [creating, setCreating] =
+    useState(false);
+
+  const [slotLoading, setSlotLoading] =
+    useState(false);
+
+  const [manualSlots, setManualSlots] =
+    useState([]);
+
+  const [manualForm, setManualForm] =
+    useState({
+      doctor_name: "",
+      appointment_date: "",
+      appointment_time: "",
+      patient_name: "",
+      patient_age: "",
+      patient_gender: "",
+      phone_number: "",
+      health_issue: ""
+    });
+
   const fetchAppointments =
     useCallback(async () => {
 
@@ -112,21 +137,43 @@ export default function Appointments() {
         setLoading(true);
         setError("");
 
-        const response =
-          await axios.get(
+        const [
+          appointmentsResponse,
+          shiftsResponse
+        ] = await Promise.all([
+          axios.get(
             apiUrl("/appointments"),
             {
               params: {
                 clinic_id: clinicId
               }
             }
-          );
+          ),
+          axios.get(
+            apiUrl(`/shifts/${clinicId}`)
+          )
+        ]);
 
         setAppointments(
-          Array.isArray(response.data)
-            ? response.data
+          Array.isArray(appointmentsResponse.data)
+            ? appointmentsResponse.data
             : []
         );
+
+        const activeShifts =
+          Array.isArray(shiftsResponse.data)
+            ? shiftsResponse.data.filter((shift) => shift.is_active)
+            : [];
+
+        setShifts(
+          activeShifts
+        );
+
+        setManualForm((current) => ({
+          ...current,
+          doctor_name:
+            current.doctor_name || activeShifts[0]?.doctor_name || ""
+        }));
 
       } catch (error) {
 
@@ -219,6 +266,135 @@ export default function Appointments() {
         .map((appointment) => appointment.doctor_name)
         .filter(Boolean)
     ).size;
+
+  const loadManualSlots =
+    useCallback(async () => {
+
+      if (
+        !manualForm.doctor_name
+        || !manualForm.appointment_date
+      ) {
+
+        setError(
+          "Choose doctor and appointment date first."
+        );
+
+        return;
+      }
+
+      try {
+
+        setSlotLoading(true);
+        setError("");
+
+        const response =
+          await axios.get(
+            apiUrl("/available-slots"),
+            {
+              params: {
+                clinic_id: clinicId,
+                doctor_name: manualForm.doctor_name,
+                appointment_date: manualForm.appointment_date
+              }
+            }
+          );
+
+        setManualSlots(
+          response.data?.slots || []
+        );
+
+      } catch (error) {
+
+        console.log(error);
+
+        setError(
+          error.response?.data?.detail ||
+            "Failed to load slots"
+        );
+
+      } finally {
+
+        setSlotLoading(false);
+      }
+    }, [
+      clinicId,
+      manualForm.appointment_date,
+      manualForm.doctor_name
+    ]);
+
+  const updateManualForm =
+    useCallback((field, value) => {
+
+      setManualForm((current) => ({
+        ...current,
+        [field]: value,
+        ...(field === "doctor_name" || field === "appointment_date"
+          ? {
+              appointment_time: ""
+            }
+          : {})
+      }));
+
+      if (
+        field === "doctor_name"
+        || field === "appointment_date"
+      ) {
+
+        setManualSlots([]);
+      }
+    }, []);
+
+  const createManualAppointment =
+    useCallback(async (event) => {
+
+      event.preventDefault();
+
+      try {
+
+        setCreating(true);
+        setError("");
+
+        await axios.post(
+          apiUrl("/appointments"),
+          {
+            clinic_id: Number(clinicId),
+            ...manualForm
+          }
+        );
+
+        setManualForm({
+          doctor_name: shifts[0]?.doctor_name || "",
+          appointment_date: "",
+          appointment_time: "",
+          patient_name: "",
+          patient_age: "",
+          patient_gender: "",
+          phone_number: "",
+          health_issue: ""
+        });
+        setManualSlots([]);
+
+        await fetchAppointments();
+
+      } catch (error) {
+
+        console.log(error);
+
+        setError(
+          error.response?.data?.detail ||
+            "Failed to create appointment"
+        );
+
+      } finally {
+
+        setCreating(false);
+      }
+    }, [
+      clinicId,
+      fetchAppointments,
+      manualForm,
+      shifts
+    ]);
 
   const cancelAppointment =
     useCallback(async (appointment) => {
@@ -314,6 +490,178 @@ export default function Appointments() {
           tone="cyan"
         />
       </div>
+
+      <section className="mt-6 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <h2 className="text-lg font-semibold text-slate-950">
+              Walk-in booking
+            </h2>
+            <p className="mt-1 text-sm text-slate-500">
+              Create a physical visit appointment using available doctor slots.
+            </p>
+          </div>
+          <Plus className="hidden text-teal-600 sm:block" />
+        </div>
+
+        <form
+          onSubmit={createManualAppointment}
+          className="mt-5 grid gap-3 lg:grid-cols-4"
+        >
+          <select
+            value={manualForm.doctor_name}
+            onChange={(event) =>
+              updateManualForm(
+                "doctor_name",
+                event.target.value
+              )
+            }
+            className="min-h-11 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+            required
+          >
+            {shifts.map((shift) => (
+              <option
+                key={shift.id}
+                value={shift.doctor_name}
+              >
+                {shift.doctor_name}
+              </option>
+            ))}
+          </select>
+
+          <input
+            type="date"
+            value={manualForm.appointment_date}
+            onChange={(event) =>
+              updateManualForm(
+                "appointment_date",
+                event.target.value
+              )
+            }
+            className="min-h-11 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+            required
+          />
+
+          <button
+            type="button"
+            onClick={loadManualSlots}
+            disabled={slotLoading}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+          >
+            {slotLoading && (
+              <Loader2
+                size={15}
+                className="animate-spin"
+              />
+            )}
+            Load slots
+          </button>
+
+          <select
+            value={manualForm.appointment_time}
+            onChange={(event) =>
+              updateManualForm(
+                "appointment_time",
+                event.target.value
+              )
+            }
+            className="min-h-11 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+            required
+          >
+            <option value="">Select slot</option>
+            {manualSlots.map((slot) => (
+              <option
+                key={slot}
+                value={slot}
+              >
+                {slot}
+              </option>
+            ))}
+          </select>
+
+          <input
+            type="text"
+            placeholder="Patient name"
+            value={manualForm.patient_name}
+            onChange={(event) =>
+              updateManualForm(
+                "patient_name",
+                event.target.value
+              )
+            }
+            className="min-h-11 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+            required
+          />
+
+          <input
+            type="text"
+            placeholder="Age"
+            value={manualForm.patient_age}
+            onChange={(event) =>
+              updateManualForm(
+                "patient_age",
+                event.target.value
+              )
+            }
+            className="min-h-11 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+          />
+
+          <input
+            type="text"
+            placeholder="Gender"
+            value={manualForm.patient_gender}
+            onChange={(event) =>
+              updateManualForm(
+                "patient_gender",
+                event.target.value
+              )
+            }
+            className="min-h-11 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+          />
+
+          <input
+            type="tel"
+            placeholder="Phone"
+            value={manualForm.phone_number}
+            onChange={(event) =>
+              updateManualForm(
+                "phone_number",
+                event.target.value
+              )
+            }
+            className="min-h-11 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+            required
+          />
+
+          <input
+            type="text"
+            placeholder="Health issue"
+            value={manualForm.health_issue}
+            onChange={(event) =>
+              updateManualForm(
+                "health_issue",
+                event.target.value
+              )
+            }
+            className="min-h-11 rounded-lg border border-slate-200 px-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100 lg:col-span-3"
+            required
+          />
+
+          <button
+            type="submit"
+            disabled={creating}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+          >
+            {creating && (
+              <Loader2
+                size={15}
+                className="animate-spin"
+              />
+            )}
+            Book
+          </button>
+        </form>
+      </section>
 
       <section className="mt-6 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
         <div className="flex flex-col gap-4 border-b border-slate-100 p-5 lg:flex-row lg:items-center lg:justify-between">
