@@ -1,7 +1,6 @@
 import { useNavigate } from "react-router-dom";
 import {
   ArrowRight,
-  Bell,
   Bot,
   CalendarCheck,
   Check,
@@ -9,7 +8,9 @@ import {
   LayoutDashboard,
   MessageSquare,
   Phone,
+  RefreshCcw,
   ShieldCheck,
+  Stethoscope,
   Workflow,
 } from "lucide-react";
 
@@ -19,66 +20,68 @@ import "./QuickCliniqHome.css";
 const features = [
   {
     icon: MessageSquare,
-    title: "WhatsApp-first automation",
+    title: "WhatsApp booking flow",
     description:
-      "Manage patient conversations, appointment requests, and clinic updates through the channel patients already use.",
+      "Patients can book, reschedule, or cancel appointments from WhatsApp with short replies like 1, book, modify, or cancel.",
   },
   {
     icon: Bot,
-    title: "AI receptionist",
+    title: "Conversational intake",
     description:
-      "Answer common questions, collect booking details, and guide patients with calm, consistent messaging.",
+      "Collect patient name, age, gender, symptoms, doctor, date, and time with guided prompts that understand natural text.",
   },
   {
-    icon: Bell,
-    title: "Smart reminders",
+    icon: RefreshCcw,
+    title: "Modify without restarting",
     description:
-      "Reduce manual follow-ups with automated visit reminders, confirmations, and post-visit communication.",
+      "Patients can correct details such as name, age, symptoms, gender, date, doctor, or slot before confirmation.",
   },
   {
     icon: LayoutDashboard,
-    title: "Clinic workspace",
+    title: "Clinic control pane",
     description:
-      "Give staff a focused view of appointments, patient activity, and open conversations without clutter.",
+      "Doctors, schedules, unavailable blocks, patient records, and appointment activity stay organized for staff.",
   },
 ];
 
 const workflow = [
-  "Patient sends a WhatsApp message",
-  "Quick Cliniq collects visit details",
-  "Clinic confirms the right slot",
-  "Reminders and follow-ups run automatically",
+  "Patient chooses book, reschedule, or cancel",
+  "Quick Cliniq collects the right appointment details",
+  "Available slots are checked against doctor schedules",
+  "The clinic dashboard stays updated automatically",
 ];
 
 const capabilities = [
-  "Appointment requests",
-  "Patient intake prompts",
-  "Automated confirmations",
-  "Follow-up reminders",
-  "Conversation summaries",
-  "Clinic team handoff",
+  "Book, reschedule, and cancel on WhatsApp",
+  "Natural date and time understanding",
+  "Multi-doctor routing",
+  "Doctor schedule and slot management",
+  "Unavailable time blocking",
+  "Dashboard appointment records",
+  "Patient profile continuity",
+  "Theme and clinic preferences",
 ];
 
 const faqs = [
   {
     question: "Is WhatsApp Business required?",
     answer:
-      "Yes. Quick Cliniq is built around WhatsApp-powered clinic communication, so a WhatsApp Business setup is required for production use.",
+      "Yes. Production messaging uses the WhatsApp Business Platform, so each clinic needs a configured WhatsApp Business setup.",
   },
   {
-    question: "How long does setup take?",
+    question: "Can patients reschedule or cancel by message?",
     answer:
-      "Setup depends on your clinic workflow and WhatsApp configuration. A simple appointment and reminder flow can usually be prepared quickly once the required details are available.",
+      "Yes. Patients can send short replies such as modify, reschedule, cancel, or menu numbers. Quick Cliniq guides them through the next step.",
   },
   {
-    question: "Is patient data secure?",
+    question: "Does it support multiple doctors?",
     answer:
-      "Quick Cliniq is designed with secure handling in mind. Access should be limited to authorized clinic users, and production deployments should follow proper data protection practices.",
+      "Yes. Clinics can manage multiple doctors, schedules, slot durations, and unavailable blocks from the dashboard.",
   },
   {
     question: "Does it work for small clinics?",
     answer:
-      "Yes. The product is especially useful for clinics that want to reduce repetitive calls, missed follow-ups, and manual appointment coordination.",
+      "Yes. Quick Cliniq is designed to keep a small clinic desk efficient without adding a heavy enterprise workflow.",
   },
 ];
 
@@ -143,6 +146,9 @@ function Navbar() {
           <a className="transition hover:text-slate-950" href="#workflow">
             Workflow
           </a>
+          <a className="transition hover:text-slate-950" href="#operations">
+            Operations
+          </a>
           <a className="transition hover:text-slate-950" href="#faq">
             FAQ
           </a>
@@ -175,14 +181,14 @@ function DashboardPreview() {
           <div className="flex items-center justify-between border-b border-white/10 pb-4">
             <div>
               <p className="text-xs uppercase tracking-[0.24em] text-teal-300">
-                Clinic desk
+                WhatsApp desk
               </p>
               <h3 className="mt-1 text-lg font-semibold text-white">
-                Today&apos;s automation queue
+                Appointment assistant
               </h3>
             </div>
             <div className="hidden rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-slate-300 sm:block">
-              Live workspace
+              Live clinic flow
             </div>
           </div>
 
@@ -190,19 +196,19 @@ function DashboardPreview() {
             <div className="space-y-3">
               {[
                 {
-                  title: "Appointment request",
-                  detail: "Patient asked for a dermatology visit tomorrow",
-                  status: "Needs slot",
+                  title: "Patient replied 1",
+                  detail: "Booking flow started and patient details are being collected",
+                  status: "Book",
                 },
                 {
-                  title: "Reminder ready",
-                  detail: "Follow-up reminder prepared for evening send",
-                  status: "Scheduled",
+                  title: "Patient typed modify",
+                  detail: "Existing appointment found and new date requested",
+                  status: "Reschedule",
                 },
                 {
-                  title: "Reception handoff",
-                  detail: "New patient details collected for staff review",
-                  status: "Review",
+                  title: "Patient typed cancel",
+                  detail: "Cancellation confirmation sent before changing status",
+                  status: "Confirm",
                 },
               ].map((item) => (
                 <div
@@ -235,9 +241,9 @@ function DashboardPreview() {
               </div>
               <div className="mt-5 space-y-5">
                 {[
-                  ["WhatsApp routing", "Ready"],
-                  ["Reminder flow", "Active"],
-                  ["Clinic handoff", "Synced"],
+                  ["Doctor routing", "Ready"],
+                  ["Slot checks", "Fast"],
+                  ["Dashboard sync", "Active"],
                 ].map(([label, value]) => (
                   <div key={label}>
                     <div className="flex items-center justify-between text-sm">
@@ -255,10 +261,10 @@ function DashboardPreview() {
                 <div className="flex items-center">
                   <div>
                     <p className="text-sm font-semibold">
-                      WhatsApp message drafted
+                      Patient message understood
                     </p>
                     <p className="text-xs text-slate-500">
-                      Clear, concise, clinic-approved tone
+                      today, next Sunday, 9 AM, book, cancel, modify
                     </p>
                   </div>
                 </div>
@@ -280,17 +286,17 @@ function Hero() {
       <div className="mx-auto max-w-7xl">
         <div className="mx-auto max-w-4xl text-center">
           <div className="inline-flex rounded-lg border border-teal-200 bg-white/70 px-3 py-2 text-sm font-medium text-teal-800 shadow-sm">
-            AI-powered WhatsApp automation for clinics
+            WhatsApp appointment automation for modern clinics
           </div>
 
           <h1 className="mt-8 text-5xl font-semibold tracking-tight text-slate-950 sm:text-6xl lg:text-7xl">
-            A calmer way to run clinic communication.
+            Book, reschedule, and cancel appointments from WhatsApp.
           </h1>
 
           <p className="mx-auto mt-7 max-w-2xl text-lg leading-8 text-slate-600">
-            Quick Cliniq helps clinics automate WhatsApp appointments,
-            reminders, patient intake, and staff handoffs with a focused,
-            modern workspace.
+            Quick Cliniq gives clinics a clean SaaS workspace and a WhatsApp
+            assistant that handles patient intake, slot checks, appointment
+            changes, cancellations, and dashboard updates.
           </p>
 
           <div className="mt-10 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -299,7 +305,7 @@ function Hero() {
               onClick={() => navigate("/login")}
               className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-slate-950/10 transition hover:-translate-y-0.5 hover:bg-slate-800 sm:w-auto"
             >
-              Get started
+              Open clinic dashboard
               <ArrowRight size={17} />
             </button>
             <a
@@ -325,8 +331,8 @@ function Features() {
       <div className="mx-auto max-w-7xl">
         <SectionHeader
           eyebrow="Designed for clinic teams"
-          title="Automation that feels operational, not noisy."
-          description="Every surface is built around real clinic workflows: patient messages, appointment coordination, reminders, and team visibility."
+          title="A practical appointment layer for busy clinic desks."
+          description="Quick Cliniq keeps patient communication simple while giving staff the controls they need for doctors, schedules, slots, and records."
         />
 
         <div className="mt-14 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -348,11 +354,11 @@ function WorkflowSection() {
             Workflow
           </p>
           <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950 md:text-5xl">
-            From first message to follow-up, without the manual chase.
+            From WhatsApp message to confirmed visit, without the manual chase.
           </h2>
           <p className="mt-5 text-base leading-8 text-slate-600 md:text-lg">
-            Quick Cliniq keeps the communication loop simple: capture intent,
-            prepare the next step, and keep staff in control.
+            Patients can use natural messages or simple menu numbers. Staff
+            still keep final visibility through the clinic dashboard.
           </p>
         </div>
 
@@ -378,19 +384,19 @@ function WorkflowSection() {
 
 function Capabilities() {
   return (
-    <section className="px-4 py-20 sm:px-6 lg:px-8">
+    <section id="operations" className="px-4 py-20 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl rounded-lg border border-slate-200 bg-white p-5 shadow-xl shadow-slate-950/5 md:p-8">
         <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
           <div>
             <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-slate-950 text-white">
-              <Workflow size={21} />
+              <Stethoscope size={21} />
             </div>
             <h2 className="mt-6 text-3xl font-semibold tracking-tight text-slate-950">
-              Keep the system light. Keep the clinic moving.
+              Built around real clinic operations.
             </h2>
             <p className="mt-4 leading-7 text-slate-600">
-              A clean automation layer for the work that repeats every day,
-              without replacing the judgement of your staff.
+              The goal is not to add another noisy tool. It is to reduce
+              repetitive coordination while keeping appointment control clear.
             </p>
           </div>
 
@@ -418,7 +424,7 @@ function FAQ() {
         <SectionHeader
           eyebrow="FAQ"
           title="Common questions, clear answers."
-          description="A quick look at what clinics usually ask before setting up WhatsApp automation."
+          description="A quick look at what clinics usually ask before using Quick Cliniq."
         />
 
         <div className="mt-12 grid gap-4 md:grid-cols-2">
@@ -451,11 +457,11 @@ function CTA() {
           <CalendarCheck size={23} />
         </div>
         <h2 className="mx-auto mt-7 max-w-3xl text-3xl font-semibold tracking-tight text-white md:text-5xl">
-          Bring WhatsApp, appointments, and clinic follow-ups into one clean flow.
+          Give your clinic desk a cleaner way to manage appointments.
         </h2>
         <p className="mx-auto mt-5 max-w-2xl leading-8 text-slate-300">
-          Start with the workflows your team handles every day, then automate
-          the repetitive steps around them.
+          Start with WhatsApp booking, then bring schedules, doctors, patients,
+          and appointment changes into one calmer workflow.
         </p>
         <button
           type="button"
@@ -483,7 +489,7 @@ function Footer() {
             className="quickcliniq-logo-lockup"
           />
           <p className="mt-5 max-w-md leading-7 text-slate-600">
-            AI-powered WhatsApp automation for modern clinics.
+            WhatsApp-first appointment automation and clinic operations software.
           </p>
         </div>
 
@@ -495,6 +501,9 @@ function Footer() {
             </a>
             <a className="block transition hover:text-slate-950" href="#workflow">
               Workflow
+            </a>
+            <a className="block transition hover:text-slate-950" href="#operations">
+              Operations
             </a>
             <button
               type="button"
@@ -511,9 +520,9 @@ function Footer() {
           <div className="mt-4 space-y-3 text-sm text-slate-600">
             <a
               className="block transition hover:text-slate-950"
-              href="mailto:hello@quickcliniq.com"
+              href="mailto:support@quickcliniq.com"
             >
-              hello@quickcliniq.com
+              support@quickcliniq.com
             </a>
             <a
               className="flex items-center gap-2 transition hover:text-slate-950"
