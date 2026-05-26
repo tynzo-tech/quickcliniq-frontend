@@ -118,8 +118,8 @@ export default function Layout({
     },
     {
       icon: MessageCircle,
-      name: "Meta Setup",
-      path: "/settings/meta"
+      name: "Admin",
+      path: "/admin"
     }
   ];
 

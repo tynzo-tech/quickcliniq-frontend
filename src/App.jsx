@@ -159,7 +159,7 @@ function App() {
       />
 
         <Route
-        path="/settings/meta"
+        path="/admin"
         element={
           <ProtectedRoute>
 
@@ -168,6 +168,11 @@ function App() {
           </ProtectedRoute>
         }
       />
+
+        <Route
+          path="/settings/meta"
+          element={<Navigate to="/admin" replace />}
+        />
 
 
         {/* REDIRECTS */}
