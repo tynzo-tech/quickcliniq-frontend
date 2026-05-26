@@ -1,6 +1,6 @@
 const fallbackApiUrl =
   import.meta.env.PROD
-    ? window.location.origin
+    ? "https://api.quickcliniq.com"
     : "http://127.0.0.1:8000";
 
 
