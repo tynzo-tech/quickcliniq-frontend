@@ -10,6 +10,7 @@ import Login from "./pages/Login";
 import Privacy from "./pages/Privacy";
 import ChangePassword from "./pages/ChangePassword";
 import Appearance from "./pages/Appearance";
+import MetaSettings from "./pages/MetaSettings";
 import Dashboard from "./pages/Dashboard";
 import Doctors from "./pages/Doctors";
 import Profile from "./pages/Profile";
@@ -152,6 +153,17 @@ function App() {
           <ProtectedRoute>
 
             <Appearance />
+
+          </ProtectedRoute>
+        }
+      />
+
+        <Route
+        path="/settings/meta"
+        element={
+          <ProtectedRoute>
+
+            <MetaSettings />
 
           </ProtectedRoute>
         }

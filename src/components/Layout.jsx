@@ -15,7 +15,8 @@ import {
   Stethoscope,
   Users,
   Clock3,
-  UserRound
+  UserRound,
+  MessageCircle
 } from "lucide-react";
 
 import {
@@ -114,6 +115,11 @@ export default function Layout({
       icon: Palette,
       name: "Appearance",
       path: "/settings/appearance"
+    },
+    {
+      icon: MessageCircle,
+      name: "Meta Setup",
+      path: "/settings/meta"
     }
   ];
 
