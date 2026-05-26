@@ -1,4 +1,9 @@
 import {
+  useEffect,
+  useState
+} from "react";
+
+import {
   CalendarDays,
   ChevronDown,
   ChevronRight,
@@ -9,8 +14,7 @@ import {
   ShieldCheck,
   Stethoscope,
   Users,
-  Clock3
-  ,
+  Clock3,
   UserRound
 } from "lucide-react";
 
@@ -39,6 +43,13 @@ function getStoredClinic() {
   }
 }
 
+function getStoredTheme() {
+
+  return localStorage.getItem(
+    "theme"
+  ) || "light";
+}
+
 
 export default function Layout({
   children,
@@ -54,6 +65,11 @@ export default function Layout({
     useNavigate();
 
   const clinic = getStoredClinic();
+
+  const [theme, setTheme] =
+    useState(
+      getStoredTheme
+    );
 
   const navItems = [
     {
@@ -111,10 +127,40 @@ export default function Layout({
       location.pathname === item.path
     );
 
-  const theme =
-    localStorage.getItem(
-      "theme"
-    ) || "light";
+  useEffect(() => {
+
+    const handleThemeChange =
+      (event) => {
+
+        setTheme(
+          event.detail?.theme ||
+            getStoredTheme()
+        );
+      };
+
+    window.addEventListener(
+      "quickcliniq-theme-change",
+      handleThemeChange
+    );
+
+    window.addEventListener(
+      "storage",
+      handleThemeChange
+    );
+
+    return () => {
+
+      window.removeEventListener(
+        "quickcliniq-theme-change",
+        handleThemeChange
+      );
+
+      window.removeEventListener(
+        "storage",
+        handleThemeChange
+      );
+    };
+  }, []);
 
   const handleLogout = () => {
 
@@ -130,32 +176,48 @@ export default function Layout({
     ) ||
     "Clinic account";
 
+  const displayName =
+    clinic?.doctor_name ||
+    clinic?.name ||
+    "Clinic user";
+
+  const displayInitials =
+    displayName
+      .split(" ")
+      .filter(Boolean)
+      .slice(0, 2)
+      .map((part) => part[0])
+      .join("")
+      .toUpperCase() || "QC";
+
   return (
 
     <div className={`theme-${theme} min-h-screen bg-slate-50 text-slate-950`}>
       <div className="flex min-h-screen">
-        <aside className="hidden w-72 shrink-0 border-r border-slate-200 bg-white/90 px-4 py-5 shadow-sm shadow-slate-950/3 backdrop-blur-xl lg:flex lg:flex-col lg:justify-between">
+        <aside className="hidden w-64 shrink-0 border-r border-slate-200/80 bg-white/95 px-4 py-5 shadow-sm shadow-slate-950/5 backdrop-blur-xl lg:flex lg:flex-col lg:justify-between">
           <div>
             <Link
               to="/dashboard"
               className="flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-slate-50"
             >
-              <img
-                src={logo}
-                alt="QuickCliniq"
-                className="h-11 w-11 rounded-lg object-contain"
-              />
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-teal-100 bg-teal-50 shadow-sm">
+                <img
+                  src={logo}
+                  alt="QuickCliniq"
+                  className="h-8 w-8 rounded-lg object-contain"
+                />
+              </div>
               <div className="min-w-0">
-                <p className="truncate text-base font-semibold text-slate-950">
+                <p className="truncate text-sm font-semibold tracking-tight text-slate-950">
                   {clinic?.name || "QuickCliniq"}
                 </p>
-                <p className="truncate text-sm text-slate-500">
+                <p className="truncate text-xs text-slate-500">
                   {clinic?.doctor_name || "Clinic workspace"}
                 </p>
               </div>
             </Link>
 
-            <nav className="mt-8 space-y-1">
+            <nav className="mt-8 space-y-1.5">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const active =
@@ -165,19 +227,16 @@ export default function Layout({
                   <Link
                     key={item.path}
                     to={item.path}
-                    className={`flex min-h-11 items-center gap-3 rounded-lg px-3 text-sm font-medium transition ${
+                    className={`flex min-h-10 items-center gap-3 rounded-lg px-3 text-[13px] font-semibold transition ${
                       active
                         ? "bg-slate-950 text-white shadow-lg shadow-slate-950/10"
-                        : "text-slate-600 hover:bg-teal-50 hover:text-slate-950"
+                        : "text-slate-600 hover:bg-teal-50/80 hover:text-slate-950"
                     }`}
                   >
                     <Icon size={18} />
                     <span className="flex-1">
                       {item.name}
                     </span>
-                    {active && (
-                      <ChevronRight size={16} />
-                    )}
                   </Link>
                 );
               })}
@@ -234,42 +293,49 @@ export default function Layout({
           </div>
 
           <div className="space-y-3">
-            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-                Logged in as
-              </p>
-              <p className="mt-1 truncate text-sm font-semibold text-slate-800">
-                {displayPhone}
-              </p>
+            <div className="flex items-center gap-3 rounded-lg border border-slate-200/80 bg-slate-50/80 p-3">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-xs font-bold text-white">
+                {displayInitials}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-[13px] font-semibold text-slate-950">
+                  {displayName}
+                </p>
+                <p className="truncate text-xs text-slate-500">
+                  {displayPhone}
+                </p>
+              </div>
             </div>
 
             <button
               type="button"
               onClick={handleLogout}
-              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-red-100 hover:bg-red-50 hover:text-red-700"
+              className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-semibold text-slate-700 transition hover:border-red-100 hover:bg-red-50 hover:text-red-700"
             >
-              <LogOut size={17} />
+              <LogOut size={16} />
               Logout
             </button>
           </div>
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-20 border-b border-slate-200 bg-white/85 px-4 py-3 backdrop-blur-xl lg:hidden">
+          <header className="sticky top-0 z-20 border-b border-slate-200/80 bg-white/90 px-4 py-3 backdrop-blur-xl lg:hidden">
             <div className="flex items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
-                <img
-                  src={logo}
-                  alt="QuickCliniq"
-                  className="h-10 w-10 rounded-lg object-contain"
-                />
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-teal-100 bg-teal-50">
+                  <img
+                    src={logo}
+                    alt="QuickCliniq"
+                    className="h-8 w-8 rounded-lg object-contain"
+                  />
+                </div>
                 <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-slate-950">
-                  {clinic?.name || "QuickCliniq"}
-                </p>
-                <p className="truncate text-xs text-slate-500">
-                  {displayPhone}
-                </p>
+                  <p className="truncate text-sm font-semibold text-slate-950">
+                    {clinic?.name || "QuickCliniq"}
+                  </p>
+                  <p className="truncate text-xs text-slate-500">
+                    {displayPhone}
+                  </p>
                 </div>
               </div>
               <button
@@ -295,7 +361,7 @@ export default function Layout({
                     className={`flex min-h-10 shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 text-xs font-semibold ${
                       active
                         ? "bg-slate-950 text-white"
-                        : "bg-slate-100 text-slate-600"
+                        : "bg-slate-100/80 text-slate-600 hover:bg-teal-50 hover:text-slate-950"
                     }`}
                   >
                     <Icon size={15} />
@@ -306,18 +372,18 @@ export default function Layout({
             </nav>
           </header>
 
-          <main className="min-w-0 flex-1 px-4 py-6 sm:px-6 lg:px-8">
-            <div className="mx-auto max-w-7xl">
+          <main className="min-w-0 flex-1 px-4 py-4 sm:px-5 lg:px-6">
+            <div className="mx-auto max-w-[1180px]">
               {(title || subtitle || actions) && (
-                <div className="mb-6 flex flex-col gap-4 rounded-lg border border-slate-200 bg-white/85 p-5 shadow-xl shadow-slate-950/5 backdrop-blur-xl sm:flex-row sm:items-end sm:justify-between">
+                <div className="mb-4 flex flex-col gap-3 rounded-lg border border-slate-200/80 bg-white/90 px-4 py-3 shadow-sm shadow-slate-950/5 backdrop-blur-xl sm:flex-row sm:items-end sm:justify-between">
                   <div>
                     {title && (
-                      <h1 className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl">
+                      <h1 className="text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl">
                         {title}
                       </h1>
                     )}
                     {subtitle && (
-                      <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-500">
+                      <p className="mt-1 max-w-2xl text-[13px] leading-5 text-slate-500">
                         {subtitle}
                       </p>
                     )}

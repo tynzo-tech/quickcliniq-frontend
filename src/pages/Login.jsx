@@ -344,18 +344,56 @@ export default function Login() {
   return (
 
     <main className="min-h-screen bg-slate-50 px-4 py-8 text-slate-950">
-      <section className="mx-auto flex min-h-[calc(100vh-4rem)] w-full max-w-md items-center">
+      <section className="mx-auto grid min-h-[calc(100vh-4rem)] w-full max-w-6xl items-center gap-8 lg:grid-cols-[0.95fr_1.05fr]">
+        <div className="hidden lg:block">
+          <div className="max-w-xl">
+            <div className="inline-flex items-center gap-2 rounded-lg border border-teal-100 bg-white/80 px-3 py-2 text-sm font-semibold text-teal-800 shadow-sm">
+              <span className="h-2 w-2 rounded-full bg-teal-500" />
+              Clinic operations dashboard
+            </div>
+            <h1 className="mt-6 text-5xl font-semibold tracking-tight text-slate-950">
+              A focused workspace for modern clinic teams.
+            </h1>
+            <p className="mt-5 max-w-lg text-base leading-8 text-slate-600">
+              Manage schedules, patients, and appointment follow-ups from a calm,
+              minimal dashboard built for everyday hospital workflows.
+            </p>
+            <div className="mt-8 grid max-w-md grid-cols-2 gap-3">
+              {[
+                ["24/7", "WhatsApp intake"],
+                ["Live", "Slot visibility"],
+                ["Secure", "Clinic access"],
+                ["Fast", "Daily workflow"]
+              ].map(([value, label]) => (
+                <div
+                  key={label}
+                  className="rounded-lg border border-slate-200 bg-white/80 p-4 shadow-sm backdrop-blur"
+                >
+                  <p className="text-2xl font-semibold tracking-tight text-slate-950">
+                    {value}
+                  </p>
+                  <p className="mt-1 text-sm text-slate-500">
+                    {label}
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
         <form
           onSubmit={handleLogin}
-          className="w-full rounded-lg border border-slate-200 bg-white p-6 shadow-xl shadow-slate-950/5 sm:p-8"
+          className="mx-auto w-full max-w-md rounded-lg border border-slate-200 bg-white/95 p-5 shadow-2xl shadow-slate-950/10 backdrop-blur-xl sm:p-6"
         >
           <div>
             <div className="flex items-center gap-3">
-              <img
-                src={logo}
-                alt="QuickCliniq"
-                className="h-12 w-12 rounded-lg object-contain"
-              />
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg border border-teal-100 bg-teal-50 shadow-sm">
+                <img
+                  src={logo}
+                  alt="QuickCliniq"
+                  className="h-10 w-10 rounded-lg object-contain"
+                />
+              </div>
               <div className="min-w-0">
                 <p className="text-lg font-semibold tracking-tight text-slate-950">
                   QuickCliniq
@@ -366,9 +404,9 @@ export default function Login() {
               </div>
             </div>
 
-            <h1 className="mt-6 text-2xl font-semibold tracking-tight text-slate-950">
+            <h2 className="mt-6 text-2xl font-semibold tracking-tight text-slate-950">
               Sign in
-            </h1>
+            </h2>
 
             <p className="mt-2 text-sm text-slate-500">
               Access your clinic schedule and appointments.
@@ -379,7 +417,7 @@ export default function Login() {
               <span className="text-sm font-medium text-slate-700">
               Username
             </span>
-            <div className="mt-2 flex items-center gap-3 rounded-lg border border-slate-300 bg-white px-3 focus-within:border-teal-600 focus-within:ring-4 focus-within:ring-teal-100">
+            <div className="mt-2 flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 transition focus-within:border-teal-600 focus-within:ring-4 focus-within:ring-teal-100">
               <UserRound
                 size={18}
                 className="shrink-0 text-slate-400"
@@ -407,7 +445,7 @@ export default function Login() {
             <span className="text-sm font-medium text-slate-700">
               Password
             </span>
-            <div className="mt-2 flex items-center gap-3 rounded-lg border border-slate-300 bg-white px-3 focus-within:border-teal-600 focus-within:ring-4 focus-within:ring-teal-100">
+            <div className="mt-2 flex items-center gap-3 rounded-lg border border-slate-200 bg-white px-3 transition focus-within:border-teal-600 focus-within:ring-4 focus-within:ring-teal-100">
               <LockKeyhole
                 size={18}
                 className="shrink-0 text-slate-400"
@@ -474,7 +512,7 @@ export default function Login() {
           <button
             type="submit"
             disabled={loading}
-            className="mt-6 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+            className="mt-6 inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white shadow-lg shadow-slate-950/10 transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {loading && (
               <Loader2

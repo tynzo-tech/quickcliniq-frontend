@@ -131,7 +131,7 @@ export default function PrivacyPolicyPage() {
             Home
           </button>
 
-          <section className="rounded-lg border border-slate-200 bg-white p-6 shadow-xl shadow-slate-950/5 md:p-10">
+          <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-xl shadow-slate-950/5 md:p-8">
             <div className="flex flex-col gap-5 border-b border-slate-100 pb-8 md:flex-row md:items-start md:justify-between">
               <div>
                 <p className="text-sm font-semibold uppercase tracking-[0.26em] text-teal-600">

@@ -182,7 +182,7 @@ export default function VerifyOtp() {
 
     <div className="flex min-h-screen items-center justify-center bg-slate-50 px-4 py-8 text-slate-950">
 
-      <div className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-6 shadow-xl shadow-slate-950/5 sm:p-8">
+      <div className="w-full max-w-md rounded-lg border border-slate-200 bg-white p-5 shadow-xl shadow-slate-950/5 sm:p-6">
 
         {/* HEADER */}
 

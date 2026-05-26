@@ -100,7 +100,7 @@ function SectionHeader({ eyebrow, title, description }) {
 
 function FeatureCard({ icon: Icon, title, description }) {
   return (
-    <article className="group rounded-lg border border-slate-200 bg-white p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-teal-200 hover:shadow-xl hover:shadow-teal-950/5">
+    <article className="group rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-teal-200 hover:shadow-xl hover:shadow-teal-950/5">
       <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-teal-50 text-teal-700 transition group-hover:bg-teal-600 group-hover:text-white">
         <Icon size={21} />
       </div>
@@ -379,7 +379,7 @@ function WorkflowSection() {
 function Capabilities() {
   return (
     <section className="px-4 py-20 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-7xl rounded-lg border border-slate-200 bg-white p-6 shadow-xl shadow-slate-950/5 md:p-10">
+      <div className="mx-auto max-w-7xl rounded-lg border border-slate-200 bg-white p-5 shadow-xl shadow-slate-950/5 md:p-8">
         <div className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr] lg:items-start">
           <div>
             <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-slate-950 text-white">
@@ -425,7 +425,7 @@ function FAQ() {
           {faqs.map((faq) => (
             <article
               key={faq.question}
-              className="rounded-lg border border-slate-200 bg-white p-6 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-teal-200 hover:shadow-xl hover:shadow-teal-950/5"
+              className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-teal-200 hover:shadow-xl hover:shadow-teal-950/5"
             >
               <h3 className="text-lg font-semibold text-slate-950">
                 {faq.question}

@@ -37,18 +37,18 @@ function StatCard({
   };
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
+    <div className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
       <div className="flex items-center justify-between gap-4">
         <div>
-          <p className="text-sm font-medium text-slate-500">
+          <p className="text-xs font-medium text-slate-500">
             {label}
           </p>
-          <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+          <p className="mt-1.5 text-2xl font-semibold tracking-tight text-slate-950">
             {value}
           </p>
         </div>
-        <div className={`flex h-11 w-11 items-center justify-center rounded-lg ${tones[tone]}`}>
-          <Icon size={21} />
+        <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${tones[tone]}`}>
+          <Icon size={18} />
         </div>
       </div>
     </div>
@@ -240,7 +240,7 @@ export default function Patients() {
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-3 md:grid-cols-3">
         <StatCard
           icon={Users}
           label="Total patients"
@@ -260,13 +260,13 @@ export default function Patients() {
         />
       </div>
 
-      <section className="mt-6 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-col gap-4 border-b border-slate-100 p-5 lg:flex-row lg:items-center lg:justify-between">
+      <section className="mt-4 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+        <div className="flex flex-col gap-3 border-b border-slate-100 p-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="text-lg font-semibold text-slate-950">
+            <h2 className="text-base font-semibold text-slate-950">
               Patient list
             </h2>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-[13px] text-slate-500">
               Showing {filteredPatients.length} of {patients.length} patients.
             </p>
           </div>
