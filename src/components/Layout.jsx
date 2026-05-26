@@ -194,30 +194,30 @@ export default function Layout({
 
     <div className={`theme-${theme} min-h-screen bg-slate-50 text-slate-950`}>
       <div className="flex min-h-screen">
-        <aside className="hidden w-64 shrink-0 border-r border-slate-200/80 bg-white/95 px-4 py-5 shadow-sm shadow-slate-950/5 backdrop-blur-xl lg:flex lg:flex-col lg:justify-between">
+        <aside className="hidden w-52 shrink-0 border-r border-slate-200/80 bg-white/95 px-2.5 py-3 shadow-sm shadow-slate-950/5 backdrop-blur-xl lg:flex lg:flex-col lg:justify-between">
           <div>
             <Link
               to="/dashboard"
-              className="flex items-center gap-3 rounded-lg px-2 py-2 transition hover:bg-slate-50"
+              className="flex items-center gap-2 rounded-lg px-2 py-2 transition hover:bg-slate-50"
             >
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg border border-teal-100 bg-teal-50 shadow-sm">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-teal-100 bg-teal-50 shadow-sm">
                 <img
                   src={logo}
                   alt="QuickCliniq"
-                  className="h-8 w-8 rounded-lg object-contain"
+                  className="h-6 w-6 rounded-lg object-contain"
                 />
               </div>
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold tracking-tight text-slate-950">
+                <p className="truncate text-[12px] font-semibold tracking-tight text-slate-950">
                   {clinic?.name || "QuickCliniq"}
                 </p>
-                <p className="truncate text-xs text-slate-500">
+                <p className="truncate text-[11px] text-slate-500">
                   {clinic?.doctor_name || "Clinic workspace"}
                 </p>
               </div>
             </Link>
 
-            <nav className="mt-8 space-y-1.5">
+            <nav className="mt-6 space-y-1">
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const active =
@@ -227,13 +227,13 @@ export default function Layout({
                   <Link
                     key={item.path}
                     to={item.path}
-                    className={`flex min-h-10 items-center gap-3 rounded-lg px-3 text-[13px] font-semibold transition ${
+                    className={`flex min-h-9 items-center gap-2.5 rounded-lg px-2.5 text-xs font-semibold transition ${
                       active
                         ? "bg-slate-950 text-white shadow-lg shadow-slate-950/10"
                         : "text-slate-600 hover:bg-teal-50/80 hover:text-slate-950"
                     }`}
                   >
-                    <Icon size={18} />
+                    <Icon size={15} />
                     <span className="flex-1">
                       {item.name}
                     </span>
@@ -245,23 +245,23 @@ export default function Layout({
                 className="group"
                 open={settingsActive}
               >
-                <summary className={`flex min-h-11 cursor-pointer list-none items-center gap-3 rounded-lg px-3 text-sm font-medium transition ${
+                <summary className={`flex min-h-9 cursor-pointer list-none items-center gap-2.5 rounded-lg px-2.5 text-xs font-semibold transition ${
                   settingsActive
                     ? "bg-slate-100 text-slate-950"
                     : "text-slate-600 hover:bg-teal-50 hover:text-slate-950"
                 }`}
                 >
-                  <Settings size={18} />
+                  <Settings size={15} />
                   <span className="flex-1">
                     Settings
                   </span>
                   <ChevronDown
-                    size={16}
+                    size={14}
                     className="transition group-open:rotate-180"
                   />
                 </summary>
 
-                <div className="mt-1 space-y-1 pl-6">
+                <div className="mt-1 space-y-1 pl-4">
                   {settingsItems.map((item) => {
                     const Icon = item.icon;
                     const active =
@@ -271,18 +271,18 @@ export default function Layout({
                       <Link
                         key={item.path}
                         to={item.path}
-                        className={`flex min-h-10 items-center gap-3 rounded-lg px-3 text-sm font-medium transition ${
+                        className={`flex min-h-8 items-center gap-2 rounded-lg px-2.5 text-[11px] font-semibold transition ${
                           active
                             ? "bg-slate-950 text-white shadow-lg shadow-slate-950/10"
                             : "text-slate-600 hover:bg-teal-50 hover:text-slate-950"
                         }`}
                       >
-                        <Icon size={17} />
+                        <Icon size={14} />
                         <span className="flex-1">
                           {item.name}
                         </span>
                         {active && (
-                          <ChevronRight size={15} />
+                          <ChevronRight size={13} />
                         )}
                       </Link>
                     );
@@ -292,30 +292,35 @@ export default function Layout({
             </nav>
           </div>
 
-          <div className="space-y-3">
-            <div className="flex items-center gap-3 rounded-lg border border-slate-200/80 bg-slate-50/80 p-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-xs font-bold text-white">
+          <details className="group relative">
+            <summary className="flex min-h-10 cursor-pointer list-none items-center gap-2 rounded-lg border border-slate-200/80 bg-slate-50/80 p-2 transition hover:bg-slate-100">
+              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-slate-950 text-[10px] font-bold text-white">
                 {displayInitials}
               </div>
-              <div className="min-w-0">
-                <p className="truncate text-[13px] font-semibold text-slate-950">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[11px] font-semibold text-slate-950">
                   {displayName}
                 </p>
-                <p className="truncate text-xs text-slate-500">
+                <p className="truncate text-[10px] text-slate-500">
                   {displayPhone}
                 </p>
               </div>
+              <ChevronDown
+                size={12}
+                className="shrink-0 text-slate-400 transition group-open:rotate-180"
+              />
+            </summary>
+            <div className="absolute bottom-full left-0 right-0 z-30 mb-2 rounded-lg border border-slate-200 bg-white p-1.5 shadow-xl shadow-slate-950/10">
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="inline-flex min-h-8 w-full items-center justify-center gap-1.5 rounded-lg border border-red-100 bg-white px-2 text-[11px] font-semibold text-red-700 transition hover:bg-red-50"
+              >
+                <LogOut size={13} />
+                Logout
+              </button>
             </div>
-
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-[13px] font-semibold text-slate-700 transition hover:border-red-100 hover:bg-red-50 hover:text-red-700"
-            >
-              <LogOut size={16} />
-              Logout
-            </button>
-          </div>
+          </details>
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
@@ -372,10 +377,10 @@ export default function Layout({
             </nav>
           </header>
 
-          <main className="min-w-0 flex-1 px-4 py-4 sm:px-5 lg:px-6">
-            <div className="mx-auto max-w-[1180px]">
+          <main className="min-w-0 flex-1 px-3 py-3 sm:px-4 lg:px-4">
+            <div className="mx-auto max-w-[1080px]">
               {(title || subtitle || actions) && (
-                <div className="mb-4 flex flex-col gap-3 rounded-lg border border-slate-200/80 bg-white/90 px-4 py-3 shadow-sm shadow-slate-950/5 backdrop-blur-xl sm:flex-row sm:items-end sm:justify-between">
+                <div className="mb-3 flex flex-col gap-3 rounded-lg border border-slate-200/80 bg-white/90 px-4 py-3 shadow-sm shadow-slate-950/5 backdrop-blur-xl sm:flex-row sm:items-end sm:justify-between">
                   <div>
                     {title && (
                       <h1 className="text-xl font-semibold tracking-tight text-slate-950 sm:text-2xl">

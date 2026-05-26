@@ -8,7 +8,6 @@ import {
 import axios from "axios";
 
 import {
-  Bell,
   Calendar,
   CalendarCheck,
   ChevronRight,
@@ -122,20 +121,20 @@ function StatCard({
 }) {
 
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex items-center gap-4">
-        <div className={`flex h-14 w-14 items-center justify-center rounded-full ${tone}`}>
-          <Icon size={27} />
+    <div className="rounded-lg border border-slate-200 bg-white p-3.5 shadow-sm">
+      <div className="flex items-center gap-3">
+        <div className={`flex h-10 w-10 items-center justify-center rounded-full ${tone}`}>
+          <Icon size={20} />
         </div>
-        <div>
-          <p className="text-sm font-semibold text-slate-600">
+        <div className="min-w-0">
+          <p className="truncate text-xs font-semibold text-slate-600">
             {label}
           </p>
-          <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
+          <p className="mt-1 text-2xl font-semibold tracking-tight text-slate-950">
             {value}
           </p>
           {helper && (
-            <p className="mt-2 text-sm font-medium text-teal-700">
+            <p className="mt-1 truncate text-xs font-medium text-teal-700">
               {helper}
             </p>
           )}
@@ -153,9 +152,9 @@ function DashboardSection({
 }) {
 
   return (
-    <section className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold text-slate-950">
+    <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="text-base font-semibold text-slate-950">
           {title}
         </h2>
         {action}
@@ -196,6 +195,9 @@ export default function Dashboard() {
 
   const [doctors, setDoctors] =
     useState([]);
+
+  const [selectedDoctorId, setSelectedDoctorId] =
+    useState("");
 
   const [loading, setLoading] =
     useState(true);
@@ -281,15 +283,37 @@ export default function Dashboard() {
           activeDoctors
         );
 
-        setForm((current) => ({
-          ...current,
-          doctor_id: current.doctor_id || activeDoctors[0]?.id || "",
-          doctor_name:
-            current.doctor_name
-            || activeDoctors[0]?.doctor_name
-            || activeDoctors[0]?.name
-            || ""
-        }));
+        setSelectedDoctorId((current) => {
+          const hasCurrent =
+            activeDoctors.some((doctor) =>
+              String(doctor.id) === String(current)
+            );
+
+          return hasCurrent
+            ? current
+            : activeDoctors[0]?.id
+              ? String(activeDoctors[0].id)
+              : "";
+        });
+
+        setForm((current) => {
+          const currentDoctor =
+            activeDoctors.find((doctor) =>
+              String(doctor.id) === String(current.doctor_id)
+            );
+
+          const fallbackDoctor =
+            currentDoctor || activeDoctors[0];
+
+          return {
+            ...current,
+            doctor_id: fallbackDoctor?.id || "",
+            doctor_name:
+              fallbackDoctor?.doctor_name
+              || fallbackDoctor?.name
+              || ""
+          };
+        });
 
       } catch (error) {
 
@@ -322,11 +346,42 @@ export default function Dashboard() {
   }, [loadDashboard]);
 
 
-  const appointments =
+  const allAppointments =
     useMemo(() =>
       dashboard?.appointments || [],
     [dashboard]
     );
+
+  const selectedDoctor =
+    useMemo(() =>
+      doctors.find((doctor) =>
+        String(doctor.id) === String(selectedDoctorId)
+      ) || null,
+    [doctors, selectedDoctorId]
+    );
+
+  const selectedDoctorName =
+    selectedDoctor?.doctor_name
+    || selectedDoctor?.name
+    || "";
+
+  const appointments =
+    useMemo(() => {
+
+      if (!selectedDoctorId) {
+
+        return allAppointments;
+      }
+
+      return allAppointments.filter((appointment) =>
+        String(appointment.doctor_id || "") === String(selectedDoctorId)
+        || (
+          !appointment.doctor_id
+          && selectedDoctorName
+          && appointment.doctor_name === selectedDoctorName
+        )
+      );
+    }, [allAppointments, selectedDoctorId, selectedDoctorName]);
 
   const todayAppointments =
     useMemo(() =>
@@ -542,10 +597,34 @@ export default function Dashboard() {
 
   return (
     <Layout
-      title={`${greeting()}, ${storedClinic?.doctor_name || dashboard?.clinic?.doctor_name || "Doctor"}`}
+      title={`${greeting()}, ${selectedDoctorName || storedClinic?.doctor_name || dashboard?.clinic?.doctor_name || "Doctor"}`}
       subtitle="Here's what's happening at your clinic today."
       actions={(
         <div className="flex items-center gap-3">
+          <label className="flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700">
+            <UserRound size={16} className="text-slate-400" />
+            <select
+              value={selectedDoctorId}
+              onChange={(event) => {
+                const value = event.target.value;
+
+                setSelectedDoctorId(value);
+                updateForm("doctor_id", value);
+              }}
+              disabled={doctors.length <= 1}
+              className="min-w-36 bg-transparent text-sm font-semibold outline-none disabled:cursor-not-allowed disabled:text-slate-500"
+              aria-label="Viewing dashboard for doctor"
+            >
+              {doctors.map((doctor) => (
+                <option
+                  key={doctor.id}
+                  value={doctor.id}
+                >
+                  {doctor.doctor_name || doctor.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <button
             type="button"
             onClick={() => setShowCreate(true)}
@@ -554,18 +633,7 @@ export default function Dashboard() {
             <Plus size={17} />
             Create Appointment
           </button>
-          <button
-            type="button"
-            className="relative inline-flex h-11 w-11 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-600"
-            aria-label="Notifications"
-          >
-            <Bell size={18} />
-            <span className="absolute -right-1 -top-1 inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-red-500 px-1 text-xs font-bold text-white">
-              {upcomingAppointments.length}
-            </span>
-          </button>
-          <div className="hidden min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-700 sm:inline-flex">
-            <Calendar size={17} />
+          <div className="hidden min-h-11 items-center rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 sm:inline-flex">
             {formatDate(todayIso())}
           </div>
         </div>
@@ -577,7 +645,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         <StatCard
           icon={CalendarCheck}
           label="Today's Appointments"
@@ -608,7 +676,7 @@ export default function Dashboard() {
         />
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-[1.05fr_1fr]">
+      <div className="mt-4 grid gap-4 xl:grid-cols-[1.05fr_1fr]">
         <DashboardSection
           title="Today's Appointments"
           action={(
@@ -622,19 +690,19 @@ export default function Dashboard() {
         >
           <div className="overflow-hidden rounded-lg border border-slate-200">
             {todayAppointments.length === 0 ? (
-              <div className="px-5 py-12 text-center text-sm text-slate-500">
+              <div className="px-4 py-8 text-center text-sm text-slate-500">
                 No appointments today.
               </div>
-            ) : todayAppointments.slice(0, 5).map((appointment) => (
+            ) : todayAppointments.slice(0, 4).map((appointment) => (
               <div
                 key={appointment.id}
-                className="grid grid-cols-[82px_1fr_auto] items-center gap-3 border-b border-slate-100 px-4 py-3 last:border-b-0"
+                className="grid grid-cols-[72px_1fr_auto] items-center gap-3 border-b border-slate-100 px-3 py-2.5 last:border-b-0"
               >
                 <p className="text-sm font-bold text-slate-950">
                   {appointment.appointment_time}
                 </p>
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-slate-100 text-sm font-bold text-slate-700">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-slate-100 text-xs font-bold text-slate-700">
                     {initials(appointment.patient_name)}
                   </div>
                   <div>
@@ -657,7 +725,7 @@ export default function Dashboard() {
         <DashboardSection title="Appointments Overview">
           <svg
             viewBox="0 0 340 170"
-            className="h-56 w-full"
+            className="h-40 w-full"
             role="img"
             aria-label="Appointments overview chart"
           >
@@ -686,7 +754,7 @@ export default function Dashboard() {
               </g>
             ))}
           </svg>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-4 gap-2">
             {[
               ["Total", appointments.length, "bg-slate-400"],
               ["Completed", appointments.filter((item) => item.status !== "cancelled").length, "bg-teal-500"],
@@ -695,13 +763,13 @@ export default function Dashboard() {
             ].map(([label, value, dot]) => (
               <div
                 key={label}
-                className="rounded-lg border border-slate-200 p-3"
+                className="rounded-lg border border-slate-200 p-2.5"
               >
                 <p className="flex items-center gap-2 text-xs font-semibold text-slate-600">
                   <span className={`h-2 w-2 rounded-full ${dot}`} />
                   {label}
                 </p>
-                <p className="mt-2 text-2xl font-semibold text-slate-950">
+                <p className="mt-1 text-xl font-semibold text-slate-950">
                   {value}
                 </p>
               </div>
@@ -710,19 +778,19 @@ export default function Dashboard() {
         </DashboardSection>
       </div>
 
-      <div className="mt-6 grid gap-6 xl:grid-cols-3">
+      <div className="mt-4 grid gap-4 xl:grid-cols-3">
         <DashboardSection
           title="Recent Patients"
           action={<a href="/patients" className="text-sm font-semibold text-blue-700">View all</a>}
         >
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {recentPatients.map((patient) => (
               <div
                 key={patient.id}
                 className="flex items-center justify-between gap-3"
               >
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-teal-50 text-sm font-bold text-teal-700">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-teal-50 text-xs font-bold text-teal-700">
                     {initials(patient.name)}
                   </div>
                   <div>
@@ -746,7 +814,7 @@ export default function Dashboard() {
           title="Book Physical Visit Record"
           action={<a href="/appointments" className="text-sm font-semibold text-blue-700">View all</a>}
         >
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {todayAppointments.slice(0, 4).map((appointment) => (
               <div
                 key={appointment.id}
@@ -770,7 +838,7 @@ export default function Dashboard() {
         </DashboardSection>
 
         <DashboardSection title="Reminders">
-          <div className="space-y-3">
+          <div className="space-y-2.5">
             {[
               [`${upcomingAppointments.length} upcoming appointments`, "/appointments", Calendar],
               ["Update your clinic profile", "/profile", UserRound],
@@ -779,7 +847,7 @@ export default function Dashboard() {
               <a
                 key={label}
                 href={path}
-                className="flex min-h-14 items-center justify-between rounded-lg border border-slate-200 px-4 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                className="flex min-h-11 items-center justify-between rounded-lg border border-slate-200 px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
               >
                 <span className="flex items-center gap-3">
                   <Icon size={18} className="text-teal-700" />
@@ -824,6 +892,7 @@ export default function Dashboard() {
                 <select
                   value={form.doctor_id}
                   onChange={(event) => updateForm("doctor_id", event.target.value)}
+                  disabled={doctors.length <= 1}
                   className="mt-2 min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
                   required
                 >

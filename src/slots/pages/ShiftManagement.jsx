@@ -5,6 +5,8 @@ import {
   useState
 } from "react";
 
+import axios from "axios";
+
 import {
   CalendarOff,
   Clock,
@@ -27,6 +29,10 @@ import {
 import Layout
 from "../../components/Layout";
 
+import {
+  apiUrl
+} from "../../config/api";
+
 
 const DAYS = [
   "Mon",
@@ -40,6 +46,16 @@ const DAYS = [
 
 
 const TIME_STEP_MINUTES = 15;
+
+
+const DEFAULT_SHIFT_FORM = {
+  working_days: ["Mon", "Tue", "Wed", "Thu", "Fri"],
+  start_time: "09:00",
+  end_time: "17:00",
+  break_start: "",
+  break_end: "",
+  slot_duration: 10
+};
 
 
 const TIME_OPTIONS = Array.from(
@@ -383,6 +399,12 @@ export default function ShiftManagement() {
   const [unavailableTimes, setUnavailableTimes] =
     useState([]);
 
+  const [doctors, setDoctors] =
+    useState([]);
+
+  const [selectedDoctorId, setSelectedDoctorId] =
+    useState("");
+
   const [initialLoading, setInitialLoading] =
     useState(true);
 
@@ -414,14 +436,7 @@ export default function ShiftManagement() {
     useState(false);
 
   const [formData, setFormData] =
-    useState({
-      working_days: ["Mon", "Tue", "Wed", "Thu", "Fri"],
-      start_time: "09:00",
-      end_time: "17:00",
-      break_start: "",
-      break_end: "",
-      slot_duration: 10
-    });
+    useState(DEFAULT_SHIFT_FORM);
 
   const [vacationData, setVacationData] =
     useState({
@@ -432,8 +447,49 @@ export default function ShiftManagement() {
       reason: ""
     });
 
+  const selectedDoctor =
+    useMemo(() =>
+      doctors.find((doctor) =>
+        String(doctor.id) === String(selectedDoctorId)
+      ) || null,
+    [doctors, selectedDoctorId]
+    );
+
+  const selectedDoctorName =
+    selectedDoctor?.doctor_name
+    || selectedDoctor?.name
+    || "";
+
   const currentShift =
-    shifts[0] || null;
+    useMemo(() =>
+      shifts.find((shift) =>
+        String(shift.doctor_id || "") === String(selectedDoctorId)
+        || (
+          !shift.doctor_id
+          && selectedDoctorName
+          && shift.doctor_name === selectedDoctorName
+        )
+      ) || null,
+    [selectedDoctorId, selectedDoctorName, shifts]
+    );
+
+  const filteredUnavailableTimes =
+    useMemo(() => {
+
+      if (!selectedDoctorId) {
+
+        return unavailableTimes;
+      }
+
+      return unavailableTimes.filter((item) =>
+        String(item.doctor_id || "") === String(selectedDoctorId)
+        || (
+          !item.doctor_id
+          && selectedDoctorName
+          && item.doctor_name === selectedDoctorName
+        )
+      );
+    }, [selectedDoctorId, selectedDoctorName, unavailableTimes]);
 
 
   const loadSchedule =
@@ -452,37 +508,51 @@ export default function ShiftManagement() {
 
       const [
         shiftData,
-        unavailableData
+        unavailableData,
+        doctorsResponse
       ] = await Promise.all([
         getShifts(
           clinic.id
         ),
         getUnavailableTimes(
           clinic.id
+        ),
+        axios.get(
+          apiUrl("/doctors"),
+          {
+            params: {
+              clinic_id: clinic.id
+            }
+          }
         )
       ]);
 
       setShifts(
-        shiftData.slice(
-          0,
-          1
-        )
+        Array.isArray(shiftData)
+          ? shiftData
+          : []
       );
       setUnavailableTimes(unavailableData);
 
-      if (shiftData[0]) {
+      const activeDoctors =
+        Array.isArray(doctorsResponse.data)
+          ? doctorsResponse.data.filter((doctor) => doctor.is_active !== false)
+          : [];
 
-        setFormData({
-          working_days: shiftData[0].working_days
-            ? shiftData[0].working_days.split(",")
-            : [],
-          start_time: shiftData[0].start_time,
-          end_time: shiftData[0].end_time,
-          break_start: shiftData[0].break_start || "",
-          break_end: shiftData[0].break_end || "",
-          slot_duration: shiftData[0].slot_duration
+      setDoctors(activeDoctors);
+
+      setSelectedDoctorId((current) => {
+        const hasCurrent =
+          activeDoctors.some((doctor) =>
+            String(doctor.id) === String(current)
+          );
+
+        return hasCurrent
+          ? current
+          : activeDoctors[0]?.id
+            ? String(activeDoctors[0].id)
+            : "";
         });
-      }
 
     } catch (error) {
 
@@ -499,6 +569,34 @@ export default function ShiftManagement() {
       setInitialLoading(false);
     }
   }, [clinic?.id]);
+
+
+  useEffect(() => {
+
+    const timer =
+      window.setTimeout(() => {
+
+        if (!currentShift) {
+
+          setFormData(DEFAULT_SHIFT_FORM);
+          return;
+        }
+
+        setFormData({
+          working_days: currentShift.working_days
+            ? currentShift.working_days.split(",")
+            : [],
+          start_time: currentShift.start_time,
+          end_time: currentShift.end_time,
+          break_start: currentShift.break_start || "",
+          break_end: currentShift.break_end || "",
+          slot_duration: currentShift.slot_duration
+        });
+      }, 0);
+
+    return () =>
+      window.clearTimeout(timer);
+  }, [currentShift]);
 
 
   useEffect(() => {
@@ -615,7 +713,8 @@ export default function ShiftManagement() {
 
       const payload = {
         clinic_id: clinic.id,
-        doctor_name: clinic.doctor_name,
+        doctor_id: selectedDoctor?.id || null,
+        doctor_name: selectedDoctorName || clinic.doctor_name,
         working_days: formData.working_days,
         start_time: formData.start_time,
         end_time: formData.end_time,
@@ -700,7 +799,8 @@ export default function ShiftManagement() {
 
       const result = await createUnavailableTime({
         clinic_id: clinic.id,
-        doctor_name: clinic.doctor_name,
+        doctor_id: selectedDoctor?.id || null,
+        doctor_name: selectedDoctorName || clinic.doctor_name,
         start_datetime: startDateTime,
         end_datetime: endDateTime,
         reason: vacationData.reason || "Vacation"
@@ -787,14 +887,34 @@ export default function ShiftManagement() {
       title="Schedule"
       subtitle="Manage your clinic hours and block unavailable times."
       actions={(
-        <button
-          type="button"
-          onClick={() => setShowBlockModal(true)}
-          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-teal-700 px-4 text-sm font-semibold text-white transition hover:bg-teal-800"
-        >
-          <Plus size={16} />
-          Block Time
-        </button>
+        <div className="flex items-center gap-3">
+          <label className="flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700">
+            <select
+              value={selectedDoctorId}
+              onChange={(event) => setSelectedDoctorId(event.target.value)}
+              disabled={doctors.length <= 1}
+              className="min-w-36 bg-transparent text-sm font-semibold outline-none disabled:cursor-not-allowed disabled:text-slate-500"
+              aria-label="Viewing schedule for doctor"
+            >
+              {doctors.map((doctor) => (
+                <option
+                  key={doctor.id}
+                  value={doctor.id}
+                >
+                  {doctor.doctor_name || doctor.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            onClick={() => setShowBlockModal(true)}
+            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg bg-teal-700 px-4 text-sm font-semibold text-white transition hover:bg-teal-800"
+          >
+            <Plus size={16} />
+            Block Time
+          </button>
+        </div>
       )}
     >
 
@@ -932,13 +1052,13 @@ export default function ShiftManagement() {
               </h2>
             </div>
 
-            {unavailableTimes.length === 0 ? (
+            {filteredUnavailableTimes.length === 0 ? (
               <div className="px-5 py-10 text-center text-sm text-slate-500">
                 No unavailable times saved.
               </div>
             ) : (
               <div className="divide-y divide-slate-100">
-                {unavailableTimes.map((item) => {
+                {filteredUnavailableTimes.map((item) => {
                   const badge =
                     formatDateBadge(
                       datePart(item.start_datetime)

@@ -1,3 +1,4 @@
+@import url("https://fonts.googleapis.com/css2?family=Nunito+Sans:opsz,wght@6..12,400;6..12,500;6..12,600;6..12,700&display=swap");
 @import "tailwindcss";
 
 :root {
@@ -7,8 +8,8 @@
   --qc-card-shadow: 0 10px 28px rgba(15, 23, 42, 0.055);
   --qc-card-shadow-hover: 0 14px 34px rgba(15, 23, 42, 0.075);
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+    "Nunito Sans", Aptos, "Segoe UI", ui-sans-serif, system-ui, -apple-system,
+    BlinkMacSystemFont, sans-serif;
   background: #f8fafc;
 }
 
@@ -18,7 +19,10 @@
 
 html {
   min-height: 100%;
-  text-rendering: geometricPrecision;
+  text-rendering: optimizeLegibility;
+  font-size: 15px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 body {
@@ -29,7 +33,51 @@ body {
     linear-gradient(315deg, rgba(14, 165, 233, 0.06), transparent 26rem),
     #f8fafc;
   color: #0f172a;
-  font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+  font-feature-settings: "kern";
+  font-size: 0.94rem;
+  font-weight: 400;
+  letter-spacing: 0;
+  line-height: 1.55;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+p,
+span,
+label,
+button,
+input,
+select,
+textarea,
+th,
+td,
+.tracking-tight {
+  letter-spacing: 0 !important;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  font-weight: 650;
+}
+
+@media (min-width: 1280px) {
+  html {
+    font-size: 14.5px;
+  }
+}
+
+@media (max-width: 640px) {
+  html {
+    font-size: 15px;
+  }
 }
 
 button,
@@ -144,8 +192,21 @@ button:disabled {
 }
 
 .theme-dark .bg-white,
+.theme-dark .bg-white\/80,
 .theme-dark .bg-white\/85,
-.theme-dark .bg-white\/90 {
+.theme-dark .bg-white\/90,
+.theme-dark .bg-white\/95 {
+  background-color: rgba(15, 23, 42, 0.96) !important;
+}
+
+.theme-dark main {
+  background:
+    linear-gradient(135deg, rgba(20, 184, 166, 0.08), transparent 24rem),
+    #0f172a;
+}
+
+.theme-dark aside,
+.theme-dark header {
   background-color: rgba(15, 23, 42, 0.96) !important;
 }
 
@@ -163,6 +224,11 @@ button:disabled {
 .theme-dark .bg-slate-50,
 .theme-dark .bg-slate-100 {
   background-color: #111827 !important;
+}
+
+.theme-dark .hover\:bg-slate-100:hover,
+.theme-dark .hover\:bg-slate-50:hover {
+  background-color: rgba(30, 41, 59, 0.9) !important;
 }
 
 .theme-dark .text-slate-950,
