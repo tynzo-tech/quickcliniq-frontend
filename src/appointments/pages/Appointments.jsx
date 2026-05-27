@@ -8,14 +8,18 @@ import {
 import axios from "axios";
 
 import {
-  CalendarCheck,
   Ban,
+  Bell,
+  CalendarCheck,
+  CalendarClock,
+  CheckCircle,
   Loader2,
   Plus,
   RefreshCw,
   Search,
   Stethoscope,
-  UserPlus
+  UserPlus,
+  X
 } from "lucide-react";
 
 import Layout
@@ -36,7 +40,8 @@ function StatCard({
   const tones = {
     slate: "bg-slate-100 text-slate-800",
     teal: "bg-teal-50 text-teal-700",
-    cyan: "bg-cyan-50 text-cyan-700"
+    cyan: "bg-cyan-50 text-cyan-700",
+    amber: "bg-amber-50 text-amber-700"
   };
 
   return (
@@ -50,7 +55,7 @@ function StatCard({
             {value}
           </p>
         </div>
-        <div className={`flex h-11 w-11 items-center justify-center rounded-lg ${tones[tone]}`}>
+        <div className={`flex h-11 w-11 items-center justify-center rounded-lg ${tones[tone] || tones.slate}`}>
           <Icon size={21} />
         </div>
       </div>
@@ -78,6 +83,26 @@ function statusClass(status) {
   }
 
   return "bg-slate-100 text-slate-700";
+}
+
+
+function urgencyClass(daysUntil) {
+
+  if (daysUntil < 0) return "bg-red-50 text-red-700";
+  if (daysUntil <= 3) return "bg-orange-50 text-orange-700";
+  if (daysUntil <= 7) return "bg-amber-50 text-amber-700";
+
+  return "bg-teal-50 text-teal-700";
+}
+
+
+function urgencyLabel(daysUntil) {
+
+  if (daysUntil < 0) return `${Math.abs(daysUntil)}d overdue`;
+  if (daysUntil === 0) return "Today";
+  if (daysUntil === 1) return "Tomorrow";
+
+  return `In ${daysUntil} days`;
 }
 
 
@@ -179,12 +204,34 @@ export default function Appointments() {
       doctor_name: "",
       appointment_date: "",
       appointment_time: "",
+      follow_up_date: "",
       patient_name: "",
       patient_age: "",
       patient_gender: "",
       phone_number: "",
       health_issue: ""
     });
+
+  const [activeTab, setActiveTab] =
+    useState("appointments");
+
+  const [showFollowUpModal, setShowFollowUpModal] =
+    useState(false);
+
+  const [selectedForFollowUp, setSelectedForFollowUp] =
+    useState(null);
+
+  const [followUpDate, setFollowUpDate] =
+    useState("");
+
+  const [savingFollowUp, setSavingFollowUp] =
+    useState(false);
+
+  const [sendingReminderId, setSendingReminderId] =
+    useState(null);
+
+  const [reminderSentId, setReminderSentId] =
+    useState(null);
 
   const fetchAppointments =
     useCallback(async () => {
@@ -409,6 +456,7 @@ export default function Appointments() {
           appointment.doctor_name,
           appointment.problem,
           appointment.appointment_date,
+          appointment.follow_up_date,
           appointment.appointment_time
         ]
           .filter(Boolean)
@@ -444,6 +492,35 @@ export default function Appointments() {
         .map((appointment) => appointment.doctor_name)
         .filter(Boolean)
     ).size;
+
+  const followUps =
+    useMemo(() => {
+
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      return appointments
+        .filter((a) => a.follow_up_date && a.status !== "cancelled")
+        .map((a) => {
+
+          const followUpDay =
+            new Date(`${a.follow_up_date}T00:00:00`);
+
+          const daysUntil =
+            Math.ceil(
+              (followUpDay - today) / (1000 * 60 * 60 * 24)
+            );
+
+          return {
+            ...a,
+            days_until_follow_up: daysUntil
+          };
+        })
+        .sort((a, b) =>
+          a.days_until_follow_up - b.days_until_follow_up
+        );
+
+    }, [appointments]);
 
   const loadManualSlots =
     useCallback(async () => {
@@ -544,12 +621,18 @@ export default function Appointments() {
         setCreating(true);
         setError("");
 
+        const payload = {
+          clinic_id: Number(clinicId),
+          ...manualForm
+        };
+
+        if (!payload.follow_up_date) {
+          delete payload.follow_up_date;
+        }
+
         await axios.post(
           apiUrl("/appointments"),
-          {
-            clinic_id: Number(clinicId),
-            ...manualForm
-          }
+          payload
         );
 
         setManualForm({
@@ -557,6 +640,7 @@ export default function Appointments() {
           doctor_name: doctorOptions[0]?.doctor_name || shifts[0]?.doctor_name || "",
           appointment_date: "",
           appointment_time: "",
+          follow_up_date: "",
           patient_name: "",
           patient_age: "",
           patient_gender: "",
@@ -587,6 +671,111 @@ export default function Appointments() {
       manualForm,
       shifts
     ]);
+
+  const openFollowUpModal =
+    useCallback((appointment) => {
+
+      setSelectedForFollowUp(appointment);
+      setFollowUpDate(appointment.follow_up_date || "");
+      setShowFollowUpModal(true);
+
+    }, []);
+
+  const closeFollowUpModal =
+    useCallback(() => {
+
+      setShowFollowUpModal(false);
+      setSelectedForFollowUp(null);
+      setFollowUpDate("");
+
+    }, []);
+
+  const saveFollowUp =
+    useCallback(async (event) => {
+
+      event.preventDefault();
+
+      if (!selectedForFollowUp || !followUpDate) {
+        return;
+      }
+
+      try {
+
+        setSavingFollowUp(true);
+        setError("");
+
+        await axios.patch(
+          apiUrl(`/appointments/${selectedForFollowUp.id}/follow-up`),
+          {
+            clinic_id: Number(clinicId),
+            follow_up_date: followUpDate
+          }
+        );
+
+        closeFollowUpModal();
+        await fetchAppointments();
+
+      } catch (error) {
+
+        console.log(error);
+
+        setError(
+          error.response?.data?.detail ||
+            "Failed to set follow-up date"
+        );
+
+      } finally {
+
+        setSavingFollowUp(false);
+      }
+
+    }, [
+      clinicId,
+      closeFollowUpModal,
+      fetchAppointments,
+      followUpDate,
+      selectedForFollowUp
+    ]);
+
+  const sendReminder =
+    useCallback(async (appointment) => {
+
+      try {
+
+        setSendingReminderId(appointment.id);
+        setError("");
+
+        await axios.post(
+          apiUrl(`/appointments/${appointment.id}/follow-up/remind`),
+          null,
+          {
+            params: {
+              clinic_id: clinicId
+            }
+          }
+        );
+
+        setReminderSentId(appointment.id);
+
+        window.setTimeout(() => {
+          setReminderSentId(null);
+        }, 3000);
+
+      } catch (error) {
+
+        console.log(error);
+
+        setError(
+          error.response?.data?.detail ||
+            "Failed to send reminder"
+        );
+
+      } finally {
+
+        setSendingReminderId(null);
+      }
+
+    }, [clinicId]);
 
   const cancelAppointment =
     useCallback(async (appointment) => {
@@ -636,6 +825,9 @@ export default function Appointments() {
       clinicId,
       fetchAppointments
     ]);
+
+  const today =
+    new Date().toISOString().split("T")[0];
 
   return (
     <Layout
@@ -765,6 +957,21 @@ export default function Appointments() {
                 }
                 className={inputClass}
                 required
+              />
+            </Field>
+
+            <Field label="Follow-up date (optional)">
+              <input
+                type="date"
+                value={manualForm.follow_up_date}
+                min={today}
+                onChange={(event) =>
+                  updateManualForm(
+                    "follow_up_date",
+                    event.target.value
+                  )
+                }
+                className={inputClass}
               />
             </Field>
 
@@ -916,202 +1123,512 @@ export default function Appointments() {
         </form>
       </section>
 
-      <section className="mt-6 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-        <div className="flex flex-col gap-4 border-b border-slate-100 p-5 lg:flex-row lg:items-center lg:justify-between">
-          <div>
-            <h2 className="text-lg font-semibold text-slate-950">
-              Appointment list
-            </h2>
-            <p className="mt-1 text-sm text-slate-500">
-              Showing {filteredAppointments.length} of {appointments.length} appointments.
-            </p>
-          </div>
+      {/* Tab bar */}
+      <div className="mt-6 flex gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
+        <button
+          type="button"
+          onClick={() => setActiveTab("appointments")}
+          className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition ${
+            activeTab === "appointments"
+              ? "bg-white text-slate-950 shadow-sm"
+              : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          <CalendarCheck size={15} />
+          Appointment list
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("followups")}
+          className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition ${
+            activeTab === "followups"
+              ? "bg-white text-slate-950 shadow-sm"
+              : "text-slate-500 hover:text-slate-700"
+          }`}
+        >
+          <CalendarClock size={15} />
+          Follow-ups
+          {followUps.length > 0 && (
+            <span className={`rounded-full px-1.5 py-0.5 text-xs font-bold ${
+              followUps.some((f) => f.days_until_follow_up <= 3)
+                ? "bg-orange-100 text-orange-700"
+                : "bg-slate-200 text-slate-600"
+            }`}>
+              {followUps.length}
+            </span>
+          )}
+        </button>
+      </div>
 
-          <div className="flex flex-col gap-3 sm:flex-row">
-            <label className="flex min-h-11 min-w-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 focus-within:border-teal-600 focus-within:ring-4 focus-within:ring-teal-100 sm:w-72">
-              <Search
-                size={17}
-                className="shrink-0 text-slate-400"
-              />
-              <input
-                type="search"
-                placeholder="Search appointments"
-                value={query}
-                onChange={(event) =>
-                  setQuery(
-                    event.target.value
-                  )
-                }
-                className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
-              />
-            </label>
+      {/* ─── Appointment list tab ─── */}
+      {activeTab === "appointments" && (
+        <section className="mt-2 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="flex flex-col gap-4 border-b border-slate-100 p-5 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <h2 className="text-lg font-semibold text-slate-950">
+                Appointment list
+              </h2>
+              <p className="mt-1 text-sm text-slate-500">
+                Showing {filteredAppointments.length} of {appointments.length} appointments.
+              </p>
+            </div>
 
-            <label className="flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 focus-within:border-teal-600 focus-within:ring-4 focus-within:ring-teal-100">
-              <Stethoscope
-                size={17}
-                className="shrink-0 text-slate-400"
-              />
-              <span className="sr-only">
-                Viewing doctor
-              </span>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <label className="flex min-h-11 min-w-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 focus-within:border-teal-600 focus-within:ring-4 focus-within:ring-teal-100 sm:w-72">
+                <Search
+                  size={17}
+                  className="shrink-0 text-slate-400"
+                />
+                <input
+                  type="search"
+                  placeholder="Search appointments"
+                  value={query}
+                  onChange={(event) =>
+                    setQuery(
+                      event.target.value
+                    )
+                  }
+                  className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
+                />
+              </label>
+
+              <label className="flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 focus-within:border-teal-600 focus-within:ring-4 focus-within:ring-teal-100">
+                <Stethoscope
+                  size={17}
+                  className="shrink-0 text-slate-400"
+                />
+                <span className="sr-only">
+                  Viewing doctor
+                </span>
+                <select
+                  value={
+                    doctorOptions.length === 1
+                      ? doctorOptions[0].id
+                      : effectiveDoctorFilter
+                  }
+                  onChange={(event) =>
+                    setDoctorFilter(
+                      event.target.value
+                    )
+                  }
+                  disabled={doctorOptions.length <= 1}
+                  className="min-h-10 bg-transparent text-sm font-medium text-slate-700 outline-none disabled:cursor-not-allowed disabled:text-slate-500"
+                >
+                  {doctorOptions.length > 1 && (
+                    <option value="all">
+                      All doctors
+                    </option>
+                  )}
+                  {doctorOptions.length === 0 && (
+                    <option value="all">
+                      No doctors configured
+                    </option>
+                  )}
+                  {doctorOptions.map((doctor) => (
+                    <option
+                      key={doctor.id}
+                      value={doctor.id}
+                    >
+                      {doctor.doctor_name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
               <select
-                value={
-                  doctorOptions.length === 1
-                    ? doctorOptions[0].id
-                    : effectiveDoctorFilter
-                }
+                value={statusFilter}
                 onChange={(event) =>
-                  setDoctorFilter(
+                  setStatusFilter(
                     event.target.value
                   )
                 }
-                disabled={doctorOptions.length <= 1}
-                className="min-h-10 bg-transparent text-sm font-medium text-slate-700 outline-none disabled:cursor-not-allowed disabled:text-slate-500"
+                className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
               >
-                {doctorOptions.length > 1 && (
-                  <option value="all">
-                    All doctors
-                  </option>
-                )}
-                {doctorOptions.length === 0 && (
-                  <option value="all">
-                    No doctors configured
-                  </option>
-                )}
-                {doctorOptions.map((doctor) => (
+                {statusOptions.map((status) => (
                   <option
-                    key={doctor.id}
-                    value={doctor.id}
+                    key={status}
+                    value={status}
                   >
-                    {doctor.doctor_name}
+                    {status === "all" ? "All statuses" : status}
                   </option>
                 ))}
               </select>
-            </label>
+            </div>
+          </div>
 
-            <select
-              value={statusFilter}
-              onChange={(event) =>
-                setStatusFilter(
-                  event.target.value
-                )
-              }
-              className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
-            >
-              {statusOptions.map((status) => (
-                <option
-                  key={status}
-                  value={status}
-                >
-                  {status === "all" ? "All statuses" : status}
-                </option>
-              ))}
-            </select>
+          {loading ? (
+            <div className="px-5 py-16 text-center text-sm text-slate-500">
+              <Loader2 className="mx-auto mb-3 animate-spin text-teal-600" />
+              Loading appointments...
+            </div>
+          ) : filteredAppointments.length === 0 ? (
+            <div className="px-5 py-16 text-center">
+              <p className="text-sm font-medium text-slate-700">
+                No appointments found.
+              </p>
+              <p className="mt-1 text-sm text-slate-500">
+                Try changing the search or status filter.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-260 text-left text-sm">
+                <thead className="bg-slate-50 text-slate-600">
+                  <tr>
+                    <th className="px-5 py-3 font-semibold">Appointment</th>
+                    <th className="px-5 py-3 font-semibold">Patient</th>
+                    <th className="px-5 py-3 font-semibold">Doctor</th>
+                    <th className="px-5 py-3 font-semibold">Health Issue</th>
+                    <th className="px-5 py-3 font-semibold">Follow-up</th>
+                    <th className="px-5 py-3 font-semibold">Status</th>
+                    <th className="px-5 py-3 font-semibold">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredAppointments.map((appointment) => (
+                    <tr
+                      key={appointment.id}
+                      className="border-t border-slate-100 transition hover:bg-slate-50/80"
+                    >
+                      <td className="px-5 py-4">
+                        <p className="font-semibold text-slate-950">
+                          #{appointment.appointment_no || appointment.id}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {formatAppointmentDate(appointment.appointment_date)} · {appointment.appointment_time || "-"}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-400">
+                          {appointment.created_by || "WhatsApp"}
+                        </p>
+                      </td>
+                      <td className="px-5 py-4">
+                        <p className="font-medium text-slate-950">
+                          {appointment.patient_name || "Patient"}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {appointment.phone_number || "-"}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-400">
+                          {appointment.gender || "Gender not set"}
+                        </p>
+                      </td>
+                      <td className="px-5 py-4 text-slate-700">
+                        {appointment.doctor_name || "Doctor"}
+                      </td>
+                      <td className="max-w-xs px-5 py-4 text-slate-600">
+                        <span className="line-clamp-2">
+                          {appointment.problem === "WhatsApp booking"
+                            ? "Health issue not provided"
+                            : appointment.problem || "Health issue not provided"}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4">
+                        {appointment.follow_up_date ? (
+                          <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
+                            <CalendarClock size={12} />
+                            {formatAppointmentDate(appointment.follow_up_date)}
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${statusClass(appointment.status)}`}>
+                          {appointment.status || "Pending"}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex flex-col gap-1.5 sm:flex-row">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              openFollowUpModal(
+                                appointment
+                              )
+                            }
+                            disabled={
+                              String(appointment.status || "").toLowerCase() === "cancelled"
+                            }
+                            className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            <CalendarClock size={13} />
+                            {appointment.follow_up_date ? "Edit follow-up" : "Set follow-up"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              cancelAppointment(
+                                appointment
+                              )
+                            }
+                            disabled={
+                              cancellingId === appointment.id
+                              || String(appointment.status || "").toLowerCase() === "cancelled"
+                            }
+                            className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-red-100 bg-white px-3 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+                          >
+                            {cancellingId === appointment.id ? (
+                              <Loader2
+                                size={13}
+                                className="animate-spin"
+                              />
+                            ) : (
+                              <Ban size={13} />
+                            )}
+                            Cancel
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* ─── Follow-ups tab ─── */}
+      {activeTab === "followups" && (
+        <section className="mt-2 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+          <div className="border-b border-slate-100 p-5">
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-50 text-amber-700">
+                <CalendarClock size={18} />
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-slate-950">
+                  Upcoming follow-ups
+                </h2>
+                <p className="mt-0.5 text-sm text-slate-500">
+                  Patients whose doctor has scheduled a follow-up visit. Send a reminder to prompt them to book.
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="px-5 py-16 text-center text-sm text-slate-500">
+              <Loader2 className="mx-auto mb-3 animate-spin text-teal-600" />
+              Loading...
+            </div>
+          ) : followUps.length === 0 ? (
+            <div className="px-5 py-16 text-center">
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
+                <CalendarClock size={22} />
+              </div>
+              <p className="text-sm font-medium text-slate-700">
+                No follow-ups scheduled.
+              </p>
+              <p className="mt-1 text-sm text-slate-500">
+                Use the "Set follow-up" button on any appointment to schedule one.
+              </p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-215 text-left text-sm">
+                <thead className="bg-slate-50 text-slate-600">
+                  <tr>
+                    <th className="px-5 py-3 font-semibold">Patient</th>
+                    <th className="px-5 py-3 font-semibold">Doctor</th>
+                    <th className="px-5 py-3 font-semibold">Original visit</th>
+                    <th className="px-5 py-3 font-semibold">Follow-up date</th>
+                    <th className="px-5 py-3 font-semibold">Due in</th>
+                    <th className="px-5 py-3 font-semibold">Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {followUps.map((appointment) => (
+                    <tr
+                      key={appointment.id}
+                      className="border-t border-slate-100 transition hover:bg-slate-50/80"
+                    >
+                      <td className="px-5 py-4">
+                        <p className="font-medium text-slate-950">
+                          {appointment.patient_name || "Patient"}
+                        </p>
+                        <p className="mt-1 text-xs text-slate-500">
+                          {appointment.phone_number || "No phone"}
+                        </p>
+                      </td>
+                      <td className="px-5 py-4 text-slate-700">
+                        {appointment.doctor_name || "Doctor"}
+                      </td>
+                      <td className="px-5 py-4 text-slate-600">
+                        <p>{formatAppointmentDate(appointment.appointment_date)}</p>
+                        <p className="mt-1 text-xs text-slate-400">
+                          {appointment.appointment_time || ""}
+                        </p>
+                      </td>
+                      <td className="px-5 py-4">
+                        <p className="font-medium text-slate-950">
+                          {formatAppointmentDate(appointment.follow_up_date)}
+                        </p>
+                      </td>
+                      <td className="px-5 py-4">
+                        <span className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${urgencyClass(appointment.days_until_follow_up)}`}>
+                          {urgencyLabel(appointment.days_until_follow_up)}
+                        </span>
+                      </td>
+                      <td className="px-5 py-4">
+                        <div className="flex flex-col gap-1.5 sm:flex-row">
+                          {reminderSentId === appointment.id ? (
+                            <span className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-teal-50 px-3 text-xs font-semibold text-teal-700">
+                              <CheckCircle size={13} />
+                              Reminder sent
+                            </span>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => sendReminder(appointment)}
+                              disabled={
+                                sendingReminderId === appointment.id
+                                || !appointment.phone_number
+                              }
+                              title={
+                                !appointment.phone_number
+                                  ? "No phone number on record"
+                                  : "Send WhatsApp reminder to book"
+                              }
+                              className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-800 disabled:cursor-not-allowed disabled:opacity-40"
+                            >
+                              {sendingReminderId === appointment.id ? (
+                                <Loader2 size={13} className="animate-spin" />
+                              ) : (
+                                <Bell size={13} />
+                              )}
+                              Send reminder
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => openFollowUpModal(appointment)}
+                            className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-500 transition hover:border-slate-300 hover:bg-slate-50"
+                          >
+                            <CalendarClock size={13} />
+                            Edit date
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
+
+      {/* ─── Follow-up modal ─── */}
+      {showFollowUpModal && (
+        <div className="fixed inset-0 z-50 flex justify-end">
+          <div
+            className="absolute inset-0 bg-slate-950/30"
+            onClick={closeFollowUpModal}
+          />
+          <div className="relative z-10 flex h-full w-full max-w-md flex-col bg-white shadow-xl">
+
+            <div className="flex items-start justify-between border-b border-slate-100 px-6 py-5">
+              <div>
+                <h2 className="text-base font-semibold text-slate-950">
+                  Set follow-up date
+                </h2>
+                <p className="mt-0.5 text-sm text-slate-500">
+                  Patient will be notified via WhatsApp to book before this date.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeFollowUpModal}
+                className="ml-4 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+
+              {/* Appointment context */}
+              <div className="rounded-lg border border-slate-100 bg-slate-50 p-4">
+                <p className="text-sm font-semibold text-slate-950">
+                  {selectedForFollowUp?.patient_name}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {selectedForFollowUp?.doctor_name}
+                  {" · "}
+                  #{selectedForFollowUp?.appointment_no || selectedForFollowUp?.id}
+                </p>
+                <p className="mt-1 text-xs text-slate-500">
+                  {formatAppointmentDate(selectedForFollowUp?.appointment_date)}
+                  {selectedForFollowUp?.appointment_time
+                    ? ` · ${selectedForFollowUp.appointment_time}`
+                    : ""}
+                </p>
+                {selectedForFollowUp?.phone_number && (
+                  <p className="mt-2 text-xs font-medium text-teal-700">
+                    WhatsApp → {selectedForFollowUp.phone_number}
+                  </p>
+                )}
+                {!selectedForFollowUp?.phone_number && (
+                  <p className="mt-2 text-xs text-orange-600">
+                    No phone number on record — notification will not be sent.
+                  </p>
+                )}
+              </div>
+
+              <form
+                onSubmit={saveFollowUp}
+                className="mt-5 space-y-5"
+              >
+                <Field label="Follow-up date">
+                  <input
+                    type="date"
+                    value={followUpDate}
+                    min={today}
+                    onChange={(event) =>
+                      setFollowUpDate(event.target.value)
+                    }
+                    className={inputClass}
+                    required
+                    autoFocus
+                  />
+                </Field>
+
+                {followUpDate && (
+                  <p className="rounded-lg border border-teal-100 bg-teal-50 px-4 py-3 text-xs leading-5 text-teal-800">
+                    A WhatsApp message will be sent asking{" "}
+                    <strong>{selectedForFollowUp?.patient_name}</strong> to book
+                    a slot before{" "}
+                    <strong>{formatAppointmentDate(followUpDate)}</strong>.
+                  </p>
+                )}
+
+                <div className="flex gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={closeFollowUpModal}
+                    className="flex-1 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={savingFollowUp || !followUpDate}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {savingFollowUp ? (
+                      <Loader2 size={15} className="animate-spin" />
+                    ) : (
+                      <CalendarClock size={15} />
+                    )}
+                    Save &amp; notify
+                  </button>
+                </div>
+              </form>
+            </div>
           </div>
         </div>
-
-        {loading ? (
-          <div className="px-5 py-16 text-center text-sm text-slate-500">
-            <Loader2 className="mx-auto mb-3 animate-spin text-teal-600" />
-            Loading appointments...
-          </div>
-        ) : filteredAppointments.length === 0 ? (
-          <div className="px-5 py-16 text-center">
-            <p className="text-sm font-medium text-slate-700">
-              No appointments found.
-            </p>
-            <p className="mt-1 text-sm text-slate-500">
-              Try changing the search or status filter.
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1040px] text-left text-sm">
-              <thead className="bg-slate-50 text-slate-600">
-                <tr>
-                  <th className="px-5 py-3 font-semibold">Appointment</th>
-                  <th className="px-5 py-3 font-semibold">Patient</th>
-                  <th className="px-5 py-3 font-semibold">Doctor</th>
-                  <th className="px-5 py-3 font-semibold">Health Issue</th>
-                  <th className="px-5 py-3 font-semibold">Status</th>
-                  <th className="px-5 py-3 font-semibold">Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredAppointments.map((appointment) => (
-                  <tr
-                    key={appointment.id}
-                    className="border-t border-slate-100 transition hover:bg-slate-50/80"
-                  >
-                    <td className="px-5 py-4">
-                      <p className="font-semibold text-slate-950">
-                        #{appointment.appointment_no || appointment.id}
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        {formatAppointmentDate(appointment.appointment_date)} · {appointment.appointment_time || "-"}
-                      </p>
-                      <p className="mt-1 text-xs text-slate-400">
-                        {appointment.created_by || "WhatsApp"}
-                      </p>
-                    </td>
-                    <td className="px-5 py-4">
-                      <p className="font-medium text-slate-950">
-                        {appointment.patient_name || "Patient"}
-                      </p>
-                      <p className="mt-1 text-xs text-slate-500">
-                        {appointment.phone_number || "-"}
-                      </p>
-                      <p className="mt-1 text-xs text-slate-400">
-                        {appointment.gender || "Gender not set"}
-                      </p>
-                    </td>
-                    <td className="px-5 py-4 text-slate-700">
-                      {appointment.doctor_name || "Doctor"}
-                    </td>
-                    <td className="max-w-xs px-5 py-4 text-slate-600">
-                      <span className="line-clamp-2">
-                        {appointment.problem === "WhatsApp booking"
-                          ? "Health issue not provided"
-                          : appointment.problem || "Health issue not provided"}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4">
-                      <span className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${statusClass(appointment.status)}`}>
-                        {appointment.status || "Pending"}
-                      </span>
-                    </td>
-                    <td className="px-5 py-4">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          cancelAppointment(
-                            appointment
-                          )
-                        }
-                        disabled={
-                          cancellingId === appointment.id
-                          || String(appointment.status || "").toLowerCase() === "cancelled"
-                        }
-                        className="inline-flex min-h-9 items-center justify-center gap-2 rounded-lg border border-red-100 bg-white px-3 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
-                      >
-                        {cancellingId === appointment.id ? (
-                          <Loader2
-                            size={14}
-                            className="animate-spin"
-                          />
-                        ) : (
-                          <Ban size={14} />
-                        )}
-                        Cancel
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
+      )}
     </Layout>
   );
 }
