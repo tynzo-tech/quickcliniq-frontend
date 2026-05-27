@@ -10,7 +10,6 @@ import Login from "./pages/Login";
 import Privacy from "./pages/Privacy";
 import ChangePassword from "./pages/ChangePassword";
 import Appearance from "./pages/Appearance";
-import MetaSettings from "./pages/MetaSettings";
 import Dashboard from "./pages/Dashboard";
 import Doctors from "./pages/Doctors";
 import Profile from "./pages/Profile";
@@ -22,6 +21,10 @@ import Appointments from "./appointments/pages/Appointments";
 import Patients from "./patients/pages/Patients";
 
 import ProtectedRoute from "./components/ProtectedRoute";
+
+import AdminLogin from "./admin/AdminLogin";
+import AdminProtectedRoute from "./admin/AdminProtectedRoute";
+import AdminMetaSettings from "./admin/pages/AdminMetaSettings";
 
 
 function App() {
@@ -158,20 +161,25 @@ function App() {
         }
       />
 
-        <Route
-        path="/admin"
-        element={
-          <ProtectedRoute>
-
-            <MetaSettings />
-
-          </ProtectedRoute>
-        }
-      />
+        {/* ADMIN PORTAL */}
 
         <Route
-          path="/settings/meta"
-          element={<Navigate to="/admin" replace />}
+          path="/admin/login"
+          element={<AdminLogin />}
+        />
+
+        <Route
+          path="/admin/meta"
+          element={
+            <AdminProtectedRoute>
+              <AdminMetaSettings />
+            </AdminProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin"
+          element={<Navigate to="/admin/login" replace />}
         />
 
 
