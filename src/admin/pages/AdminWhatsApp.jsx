@@ -22,6 +22,7 @@ import {
 
 import AdminLayout from "../AdminLayout";
 import { apiUrl } from "../../config/api";
+import { adminHeaders } from "../adminFetch";
 
 
 const inputClass =
@@ -103,8 +104,8 @@ export default function AdminWhatsApp() {
       setError("");
 
       const [numRes, cliRes] = await Promise.all([
-        fetch(apiUrl("/admin/whatsapp-numbers")),
-        fetch(apiUrl("/admin/clinics"))
+        fetch(apiUrl("/admin/whatsapp-numbers"), { headers: adminHeaders() }),
+        fetch(apiUrl("/admin/clinics"), { headers: adminHeaders() })
       ]);
 
       const numData = await numRes.json();
@@ -184,7 +185,7 @@ export default function AdminWhatsApp() {
 
       const res = await fetch(url, {
         method: editingId ? "PUT" : "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: adminHeaders({ "Content-Type": "application/json" }),
         body: JSON.stringify(payload)
       });
 
@@ -217,7 +218,7 @@ export default function AdminWhatsApp() {
 
       const res = await fetch(
         apiUrl(`/admin/whatsapp-numbers/${number.id}/toggle`),
-        { method: "POST" }
+        { method: "POST", headers: adminHeaders() }
       );
 
       if (!res.ok) {
@@ -273,7 +274,7 @@ export default function AdminWhatsApp() {
         apiUrl(`/admin/whatsapp-numbers/${testModal.number.id}/test`),
         {
           method: "POST",
-          headers: { "Content-Type": "application/json" },
+          headers: adminHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify({ to: testTo, message: testMessage })
         }
       );

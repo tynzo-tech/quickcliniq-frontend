@@ -15,6 +15,7 @@ import {
 
 import AdminLayout from "../AdminLayout";
 import { apiUrl } from "../../config/api";
+import { adminHeaders } from "../adminFetch";
 
 
 const FIELD_GROUPS = [
@@ -81,7 +82,7 @@ export default function AdminMetaSettings() {
 
       try {
 
-        const res = await fetch(apiUrl("/admin/meta-settings"));
+        const res = await fetch(apiUrl("/admin/meta-settings"), { headers: adminHeaders() });
         const data = await res.json();
 
         if (!res.ok) throw new Error(data.detail || "Unable to load");
@@ -134,7 +135,7 @@ export default function AdminMetaSettings() {
         apiUrl("/admin/meta-settings"),
         {
           method: "PUT",
-          headers: { "Content-Type": "application/json" },
+          headers: adminHeaders({ "Content-Type": "application/json" }),
           body: JSON.stringify(payload)
         }
       );

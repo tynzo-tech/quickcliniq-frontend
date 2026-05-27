@@ -15,7 +15,7 @@ export default function Login() {
     useNavigate();
 
   const [username, setUsername] =
-    useState("sandhya");
+    useState("");
 
   const [password, setPassword] =
     useState("");

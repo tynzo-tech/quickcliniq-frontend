@@ -26,6 +26,7 @@ import AdminLogin from "./admin/AdminLogin";
 import AdminProtectedRoute from "./admin/AdminProtectedRoute";
 import AdminMetaSettings from "./admin/pages/AdminMetaSettings";
 import AdminWhatsApp from "./admin/pages/AdminWhatsApp";
+import AdminClinics from "./admin/pages/AdminClinics";
 
 
 function App() {
@@ -174,6 +175,15 @@ function App() {
           element={
             <AdminProtectedRoute>
               <AdminWhatsApp />
+            </AdminProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/clinics"
+          element={
+            <AdminProtectedRoute>
+              <AdminClinics />
             </AdminProtectedRoute>
           }
         />

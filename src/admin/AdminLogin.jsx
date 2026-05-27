@@ -49,6 +49,7 @@ export default function AdminLogin() {
       }
 
       localStorage.setItem("admin_logged_in", "true");
+      localStorage.setItem("admin_token", data.token);
       localStorage.setItem("admin", JSON.stringify(data.admin));
       navigate("/admin/whatsapp", { replace: true });
 

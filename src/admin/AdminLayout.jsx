@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LogOut, Phone, Settings } from "lucide-react";
+import { Building2, LogOut, Phone, Settings } from "lucide-react";
 
 
 const NAV = [
@@ -7,6 +7,11 @@ const NAV = [
     label: "WhatsApp Numbers",
     path: "/admin/whatsapp",
     icon: Phone
+  },
+  {
+    label: "Clinics",
+    path: "/admin/clinics",
+    icon: Building2
   },
   {
     label: "Meta Settings",
@@ -24,6 +29,7 @@ export default function AdminLayout({ title, subtitle, children }) {
   function logout() {
 
     localStorage.removeItem("admin_logged_in");
+    localStorage.removeItem("admin_token");
     localStorage.removeItem("admin");
     navigate("/admin/login", { replace: true });
   }
