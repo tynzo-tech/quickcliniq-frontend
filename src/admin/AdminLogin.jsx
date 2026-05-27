@@ -18,7 +18,7 @@ export default function AdminLogin() {
 
     if (localStorage.getItem("admin_logged_in")) {
 
-      navigate("/admin/meta", { replace: true });
+      navigate("/admin/whatsapp", { replace: true });
     }
 
   }, [navigate]);
@@ -50,7 +50,7 @@ export default function AdminLogin() {
 
       localStorage.setItem("admin_logged_in", "true");
       localStorage.setItem("admin", JSON.stringify(data.admin));
-      navigate("/admin/meta", { replace: true });
+      navigate("/admin/whatsapp", { replace: true });
 
     } catch {
 

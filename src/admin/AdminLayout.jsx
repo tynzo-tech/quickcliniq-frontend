@@ -1,8 +1,13 @@
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { LogOut, Settings } from "lucide-react";
+import { LogOut, Phone, Settings } from "lucide-react";
 
 
 const NAV = [
+  {
+    label: "WhatsApp Numbers",
+    path: "/admin/whatsapp",
+    icon: Phone
+  },
   {
     label: "Meta Settings",
     path: "/admin/meta",
