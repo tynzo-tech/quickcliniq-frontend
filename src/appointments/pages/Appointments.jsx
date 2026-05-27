@@ -230,8 +230,8 @@ export default function Appointments() {
   const [sendingReminderId, setSendingReminderId] =
     useState(null);
 
-  const [reminderSentId, setReminderSentId] =
-    useState(null);
+  const [reminderSentIds, setReminderSentIds] =
+    useState(new Set());
 
   const fetchAppointments =
     useCallback(async () => {
@@ -516,6 +516,7 @@ export default function Appointments() {
             days_until_follow_up: daysUntil
           };
         })
+        .filter((a) => a.days_until_follow_up === 1)
         .sort((a, b) =>
           a.days_until_follow_up - b.days_until_follow_up
         );
@@ -755,11 +756,9 @@ export default function Appointments() {
           }
         );
 
-        setReminderSentId(appointment.id);
-
-        window.setTimeout(() => {
-          setReminderSentId(null);
-        }, 3000);
+        setReminderSentIds((prev) =>
+          new Set([...prev, appointment.id])
+        );
 
       } catch (error) {
 
@@ -1150,7 +1149,7 @@ export default function Appointments() {
           Follow-ups
           {followUps.length > 0 && (
             <span className={`rounded-full px-1.5 py-0.5 text-xs font-bold ${
-              followUps.some((f) => f.days_until_follow_up <= 3)
+              followUps.length > 0
                 ? "bg-orange-100 text-orange-700"
                 : "bg-slate-200 text-slate-600"
             }`}>
@@ -1398,10 +1397,10 @@ export default function Appointments() {
               </div>
               <div>
                 <h2 className="text-lg font-semibold text-slate-950">
-                  Upcoming follow-ups
+                  Tomorrow's follow-ups
                 </h2>
                 <p className="mt-0.5 text-sm text-slate-500">
-                  Patients whose doctor has scheduled a follow-up visit. Send a reminder to prompt them to book.
+                  Patients with a follow-up scheduled for tomorrow. Send each a WhatsApp reminder once to book.
                 </p>
               </div>
             </div>
@@ -1418,10 +1417,10 @@ export default function Appointments() {
                 <CalendarClock size={22} />
               </div>
               <p className="text-sm font-medium text-slate-700">
-                No follow-ups scheduled.
+                No follow-ups due tomorrow.
               </p>
               <p className="mt-1 text-sm text-slate-500">
-                Use the "Set follow-up" button on any appointment to schedule one.
+                Patients with a follow-up date set for tomorrow will appear here.
               </p>
             </div>
           ) : (
@@ -1472,7 +1471,7 @@ export default function Appointments() {
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex flex-col gap-1.5 sm:flex-row">
-                          {reminderSentId === appointment.id ? (
+                          {reminderSentIds.has(appointment.id) ? (
                             <span className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-teal-50 px-3 text-xs font-semibold text-teal-700">
                               <CheckCircle size={13} />
                               Reminder sent
