@@ -11,17 +11,16 @@
 
 .quickcliniq-logo-lockup {
   display: block;
-  width: clamp(13rem, 22vw, 18rem);
-  height: 4.5rem;
-  object-fit: cover;
-  object-position: center 58%;
-  border-radius: 0.5rem;
+  width: clamp(18rem, 32vw, 28rem);
+  height: 7rem;
+  object-fit: contain;
+  object-position: left center;
 }
 
 @media (max-width: 640px) {
   .quickcliniq-logo-lockup {
-    width: 11.5rem;
-    height: 3.75rem;
+    width: 15rem;
+    height: 5.5rem;
   }
 }
 
