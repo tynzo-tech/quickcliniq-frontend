@@ -132,6 +132,7 @@ export default function Appointments() {
   const [activeTab, setActiveTab] = useState("appointments");
   const [currentPage, setCurrentPage] = useState(1);
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [menuPos, setMenuPos] = useState({ top: 0, right: 0 });
 
   // ─── Action states ──────────────────────────────────
   const [cancellingId, setCancellingId] = useState(null);
@@ -836,9 +837,15 @@ export default function Appointments() {
                               <div className="relative">
                                 <button
                                   type="button"
-                                  onClick={() =>
-                                    setOpenMenuId(openMenuId === appt.id ? null : appt.id)
-                                  }
+                                  onClick={(e) => {
+                                    if (openMenuId === appt.id) {
+                                      setOpenMenuId(null);
+                                    } else {
+                                      const rect = e.currentTarget.getBoundingClientRect();
+                                      setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+                                      setOpenMenuId(appt.id);
+                                    }
+                                  }}
                                   disabled={isActing}
                                   className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40"
                                 >
@@ -850,7 +857,10 @@ export default function Appointments() {
                                 </button>
 
                                 {openMenuId === appt.id && (
-                                  <div className="absolute right-0 top-9 z-20 min-w-47 rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+                                  <div
+                                    className="fixed z-50 min-w-47 rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
+                                    style={{ top: menuPos.top, right: menuPos.right }}
+                                  >
                                     <button
                                       type="button"
                                       onClick={() => openFollowUpModal(appt)}
