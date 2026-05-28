@@ -114,6 +114,7 @@ export default function Appointments() {
 
   const clinicId = localStorage.getItem("clinic_id");
   const todayStr = new Date().toISOString().split("T")[0];
+  const tomorrowStr = (() => { const d = new Date(); d.setDate(d.getDate() + 1); return d.toISOString().split("T")[0]; })();
 
   // ─── Data ───────────────────────────────────────────
   const [appointments, setAppointments] = useState([]);
@@ -125,7 +126,6 @@ export default function Appointments() {
   // ─── Filters ────────────────────────────────────────
   const [query, setQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [dateFilter, setDateFilter] = useState("");
   const [doctorFilter, setDoctorFilter] = useState("all");
 
   // ─── UI state ───────────────────────────────────────
@@ -271,9 +271,6 @@ export default function Appointments() {
         String(a.doctor_id || "") === effectiveDoctorFilter ||
         (!a.doctor_id && selectedDoctor?.doctor_name && a.doctor_name === selectedDoctor.doctor_name);
 
-      const matchDate =
-        !dateFilter || a.appointment_date === dateFilter;
-
       const searchable = [
         a.patient_name,
         a.phone_number,
@@ -287,10 +284,40 @@ export default function Appointments() {
         .join(" ")
         .toLowerCase();
 
-      return matchStatus && matchDoctor && matchDate && (!q || searchable.includes(q));
+      return matchStatus && matchDoctor && (!q || searchable.includes(q));
     });
 
-  }, [appointments, effectiveDoctorFilter, query, dateFilter, selectedDoctor, statusFilter]);
+  }, [appointments, effectiveDoctorFilter, query, selectedDoctor, statusFilter]);
+
+  // ─── Time sort helper ────────────────────────────────
+  const sortByTime = (a, b) => {
+    const toMin = (t) => {
+      if (!t) return 0;
+      const [time, period] = t.split(" ");
+      const [h, m] = (time || "0:0").split(":").map(Number);
+      const hour = period === "PM" && h !== 12 ? h + 12 : period === "AM" && h === 12 ? 0 : h;
+      return hour * 60 + (m || 0);
+    };
+    return toMin(a.appointment_time) - toMin(b.appointment_time);
+  };
+
+  // ─── Grouped views ───────────────────────────────────
+  const todayAppts = useMemo(() =>
+    filteredAppointments.filter((a) => a.appointment_date === todayStr).sort(sortByTime),
+    [filteredAppointments, todayStr] // eslint-disable-line
+  );
+
+  const tomorrowAppts = useMemo(() =>
+    filteredAppointments.filter((a) => a.appointment_date === tomorrowStr).sort(sortByTime),
+    [filteredAppointments, tomorrowStr] // eslint-disable-line
+  );
+
+  const upcomingAppts = useMemo(() =>
+    filteredAppointments
+      .filter((a) => a.appointment_date > tomorrowStr)
+      .sort((a, b) => a.appointment_date.localeCompare(b.appointment_date) || sortByTime(a, b)),
+    [filteredAppointments, tomorrowStr] // eslint-disable-line
+  );
 
   // ─── Stats (from all appointments) ──────────────────
   const stats = useMemo(() => {
@@ -345,15 +372,14 @@ export default function Appointments() {
 
   useEffect(() => {
     setCurrentPage(1);
-  }, [query, statusFilter, dateFilter, doctorFilter, activeTab]);
+  }, [query, statusFilter, doctorFilter, activeTab]);
 
   // ─── Filters ────────────────────────────────────────
-  const hasFilters = query || statusFilter !== "all" || dateFilter;
+  const hasFilters = query || statusFilter !== "all";
 
   const clearFilters = useCallback(() => {
     setQuery("");
     setStatusFilter("all");
-    setDateFilter("");
   }, []);
 
   // ─── Status options ──────────────────────────────────
@@ -710,13 +736,6 @@ export default function Appointments() {
                 </option>
               ))}
             </select>
-            <input
-              type="date"
-              value={dateFilter}
-              onChange={(e) => setDateFilter(e.target.value)}
-              placeholder="Select date"
-              className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
-            />
             {hasFilters && (
               <button
                 type="button"
@@ -729,249 +748,151 @@ export default function Appointments() {
             )}
           </div>
 
-          {/* Table */}
-          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
-            {loading ? (
-              <div className="flex items-center justify-center py-20 text-sm text-slate-500">
-                <Loader2 className="mr-2 animate-spin text-teal-600" size={18} />
-                Loading appointments...
-              </div>
-            ) : filteredAppointments.length === 0 ? (
-              <div className="py-20 text-center">
-                <p className="text-sm font-medium text-slate-700">No appointments found.</p>
-                {hasFilters && (
-                  <button
-                    type="button"
-                    onClick={clearFilters}
-                    className="mt-2 text-sm text-teal-700 hover:underline"
-                  >
-                    Clear filters
-                  </button>
-                )}
-              </div>
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-215 text-left text-sm">
-                    <thead className="bg-slate-50">
-                      <tr>
-                        {["Time", "Patient", "Doctor", "Health Issue", "Follow-up", "Status", "Actions"].map((h) => (
-                          <th
-                            key={h}
-                            className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-slate-500"
-                          >
-                            {h}
-                          </th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {pagedAppointments.map((appt) => {
+          {/* Grouped sections */}
+          {loading ? (
+            <div className="flex items-center justify-center py-20 text-sm text-slate-500">
+              <Loader2 className="mr-2 animate-spin text-teal-600" size={18} />
+              Loading appointments...
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {[
+                { label: "Today", date: todayStr, list: todayAppts },
+                { label: "Tomorrow", date: tomorrowStr, list: tomorrowAppts },
+                ...(upcomingAppts.length > 0 ? [{ label: "Upcoming", date: null, list: upcomingAppts }] : [])
+              ].map(({ label, date, list }) => (
+                <div key={label} className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
 
-                        const isCancelled =
-                          String(appt.status || "").toLowerCase().includes("cancel");
-
-                        const isActing =
-                          cancellingId === appt.id || markingId === appt.id;
-
-                        return (
-                          <tr
-                            key={appt.id}
-                            className="border-t border-slate-100 transition hover:bg-slate-50/60"
-                          >
-                            {/* Time */}
-                            <td className="whitespace-nowrap px-5 py-4">
-                              <p className="text-xs text-slate-400">
-                                {formatDate(appt.appointment_date) || "—"}
-                              </p>
-                              <p className="mt-0.5 font-semibold text-slate-800">
-                                {appt.appointment_time || "—"}
-                              </p>
-                            </td>
-
-                            {/* Patient */}
-                            <td className="px-5 py-4">
-                              <p className="font-semibold text-slate-900">
-                                {appt.patient_name || "Patient"}
-                              </p>
-                              <p className="mt-0.5 text-xs text-slate-400">
-                                {appt.phone_number || ""}
-                                {appt.phone_number && appt.gender ? " · " : ""}
-                                {appt.gender || ""}
-                              </p>
-                            </td>
-
-                            {/* Doctor */}
-                            <td className="px-5 py-4 text-slate-700">
-                              {appt.doctor_name || "—"}
-                            </td>
-
-                            {/* Health Issue */}
-                            <td className="max-w-45 px-5 py-4 text-slate-600">
-                              <span className="line-clamp-2">
-                                {appt.problem === "WhatsApp booking"
-                                  ? "—"
-                                  : appt.problem || "—"}
-                              </span>
-                            </td>
-
-                            {/* Follow-up */}
-                            <td className="whitespace-nowrap px-5 py-4">
-                              {appt.follow_up_date ? (
-                                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-orange-600">
-                                  <CalendarDays size={13} />
-                                  {formatDate(appt.follow_up_date)}
-                                </span>
-                              ) : (
-                                <span className="text-slate-300">—</span>
-                              )}
-                            </td>
-
-                            {/* Status */}
-                            <td className="px-5 py-4">
-                              <StatusBadge status={appt.status} />
-                            </td>
-
-                            {/* Actions — three-dot menu */}
-                            <td className="px-5 py-4">
-                              <div className="relative">
-                                <button
-                                  type="button"
-                                  onClick={(e) => {
-                                    if (openMenuId === appt.id) {
-                                      setOpenMenuId(null);
-                                    } else {
-                                      const rect = e.currentTarget.getBoundingClientRect();
-                                      setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
-                                      setOpenMenuId(appt.id);
-                                    }
-                                  }}
-                                  disabled={isActing}
-                                  className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40"
-                                >
-                                  {isActing ? (
-                                    <Loader2 size={15} className="animate-spin" />
-                                  ) : (
-                                    <MoreVertical size={15} />
-                                  )}
-                                </button>
-
-                                {openMenuId === appt.id && (
-                                  <div
-                                    className="fixed z-50 min-w-47 rounded-xl border border-slate-200 bg-white py-1 shadow-lg"
-                                    style={{ top: menuPos.top, right: menuPos.right }}
-                                  >
-                                    <button
-                                      type="button"
-                                      onClick={() => openFollowUpModal(appt)}
-                                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
-                                    >
-                                      <CalendarClock size={14} className="text-slate-400" />
-                                      Edit follow-up
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => markStatus(appt, "completed")}
-                                      disabled={isCancelled}
-                                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                                    >
-                                      <CheckCircle size={14} className="text-slate-400" />
-                                      Mark completed
-                                    </button>
-                                    <button
-                                      type="button"
-                                      onClick={() => markStatus(appt, "no-show")}
-                                      disabled={isCancelled}
-                                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
-                                    >
-                                      <UserRound size={14} className="text-slate-400" />
-                                      Mark as no-show
-                                    </button>
-                                    <div className="my-1 border-t border-slate-100" />
-                                    <button
-                                      type="button"
-                                      onClick={() => cancelAppointment(appt)}
-                                      disabled={isCancelled}
-                                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
-                                    >
-                                      <Ban size={14} />
-                                      Cancel appointment
-                                    </button>
-                                  </div>
-                                )}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-
-                {/* Pagination */}
-                <div className="flex items-center justify-between border-t border-slate-100 px-5 py-4">
-                  <p className="text-sm text-slate-500">
-                    Showing{" "}
-                    {Math.min((currentPage - 1) * PAGE_SIZE + 1, filteredAppointments.length)}
-                    {" to "}
-                    {Math.min(currentPage * PAGE_SIZE, filteredAppointments.length)}
-                    {" of "}
-                    {filteredAppointments.length} appointments
-                  </p>
-                  <div className="flex items-center gap-1">
-                    <button
-                      type="button"
-                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                      disabled={currentPage === 1}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:opacity-40"
-                    >
-                      <ChevronLeft size={15} />
-                    </button>
-                    {Array.from({ length: totalPages }, (_, i) => i + 1)
-                      .filter((p) =>
-                        p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1
-                      )
-                      .reduce((acc, p, idx, arr) => {
-                        if (idx > 0 && p - arr[idx - 1] > 1) acc.push("...");
-                        acc.push(p);
-                        return acc;
-                      }, [])
-                      .map((p, idx) =>
-                        p === "..." ? (
-                          <span
-                            key={`el-${idx}`}
-                            className="px-1 text-sm text-slate-400"
-                          >
-                            …
-                          </span>
-                        ) : (
-                          <button
-                            key={p}
-                            type="button"
-                            onClick={() => setCurrentPage(p)}
-                            className={`flex h-8 w-8 items-center justify-center rounded-lg border text-sm font-medium transition ${
-                              currentPage === p
-                                ? "border-teal-600 bg-teal-600 text-white"
-                                : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                            }`}
-                          >
-                            {p}
-                          </button>
-                        )
+                  {/* Group header */}
+                  <div className="flex items-center justify-between border-b border-slate-100 bg-slate-50 px-5 py-3">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-slate-800">{label}</span>
+                      {date && (
+                        <span className="text-xs text-slate-400">{formatDate(date)}</span>
                       )}
-                    <button
-                      type="button"
-                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                      disabled={currentPage === totalPages}
-                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:opacity-40"
-                    >
-                      <ChevronRight size={15} />
-                    </button>
+                    </div>
+                    <span className="rounded-full bg-slate-200 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+                      {list.length}
+                    </span>
                   </div>
+
+                  {list.length === 0 ? (
+                    <div className="py-10 text-center text-sm text-slate-400">
+                      No appointments {label.toLowerCase()}.
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full min-w-200 text-left text-sm">
+                        <thead>
+                          <tr>
+                            {["Time", "Patient", "Doctor", "Health Issue", "Follow-up", "Status", "Actions"].map((h) => (
+                              <th key={h} className="px-5 py-3 text-xs font-semibold uppercase tracking-wide text-slate-400">
+                                {h}
+                              </th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {list.map((appt) => {
+                            const isCancelled = String(appt.status || "").toLowerCase().includes("cancel");
+                            const isActing = cancellingId === appt.id || markingId === appt.id;
+
+                            return (
+                              <tr key={appt.id} className="border-t border-slate-100 transition hover:bg-slate-50/60">
+
+                                <td className="whitespace-nowrap px-5 py-3.5">
+                                  {label === "Upcoming" && (
+                                    <p className="text-xs text-slate-400">{formatDate(appt.appointment_date)}</p>
+                                  )}
+                                  <p className="font-semibold text-slate-800">{appt.appointment_time || "—"}</p>
+                                </td>
+
+                                <td className="px-5 py-3.5">
+                                  <p className="font-semibold text-slate-900">{appt.patient_name || "Patient"}</p>
+                                  <p className="mt-0.5 text-xs text-slate-400">
+                                    {appt.phone_number || ""}
+                                    {appt.phone_number && appt.gender ? " · " : ""}
+                                    {appt.gender || ""}
+                                  </p>
+                                </td>
+
+                                <td className="px-5 py-3.5 text-slate-700">{appt.doctor_name || "—"}</td>
+
+                                <td className="max-w-40 px-5 py-3.5 text-slate-600">
+                                  <span className="line-clamp-2">
+                                    {appt.problem === "WhatsApp booking" ? "—" : appt.problem || "—"}
+                                  </span>
+                                </td>
+
+                                <td className="whitespace-nowrap px-5 py-3.5">
+                                  {appt.follow_up_date ? (
+                                    <span className="inline-flex items-center gap-1.5 text-xs font-medium text-orange-600">
+                                      <CalendarDays size={13} />
+                                      {formatDate(appt.follow_up_date)}
+                                    </span>
+                                  ) : (
+                                    <span className="text-slate-300">—</span>
+                                  )}
+                                </td>
+
+                                <td className="px-5 py-3.5">
+                                  <StatusBadge status={appt.status} />
+                                </td>
+
+                                <td className="px-5 py-3.5">
+                                  <div className="relative">
+                                    <button
+                                      type="button"
+                                      onClick={(e) => {
+                                        if (openMenuId === appt.id) {
+                                          setOpenMenuId(null);
+                                        } else {
+                                          const rect = e.currentTarget.getBoundingClientRect();
+                                          setMenuPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right });
+                                          setOpenMenuId(appt.id);
+                                        }
+                                      }}
+                                      disabled={isActing}
+                                      className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40"
+                                    >
+                                      {isActing ? <Loader2 size={15} className="animate-spin" /> : <MoreVertical size={15} />}
+                                    </button>
+
+                                    {openMenuId === appt.id && (
+                                      <div className="fixed z-50 min-w-47 rounded-xl border border-slate-200 bg-white py-1 shadow-lg" style={{ top: menuPos.top, right: menuPos.right }}>
+                                        <button type="button" onClick={() => openFollowUpModal(appt)} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50">
+                                          <CalendarClock size={14} className="text-slate-400" />
+                                          Edit follow-up
+                                        </button>
+                                        <button type="button" onClick={() => markStatus(appt, "completed")} disabled={isCancelled} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">
+                                          <CheckCircle size={14} className="text-slate-400" />
+                                          Mark completed
+                                        </button>
+                                        <button type="button" onClick={() => markStatus(appt, "no-show")} disabled={isCancelled} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40">
+                                          <UserRound size={14} className="text-slate-400" />
+                                          Mark as no-show
+                                        </button>
+                                        <div className="my-1 border-t border-slate-100" />
+                                        <button type="button" onClick={() => cancelAppointment(appt)} disabled={isCancelled} className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40">
+                                          <Ban size={14} />
+                                          Cancel appointment
+                                        </button>
+                                      </div>
+                                    )}
+                                  </div>
+                                </td>
+
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
-              </>
-            )}
-          </div>
+              ))}
+            </div>
+          )}
         </section>
       )}
 
