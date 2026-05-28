@@ -700,42 +700,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* ── Recent Patients (full width below) ── */}
-      <div className="mt-4">
-        <Card title="Recent Patients" linkTo="/patients">
-          {recentPatients.length === 0 ? (
-            <div className="py-6 text-center text-sm text-slate-400">
-              No patients yet.
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-100">
-              {recentPatients.map((patient) => (
-                <div
-                  key={patient.id}
-                  className="flex items-center justify-between gap-3 py-3"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold ${avatarColor(patient.name)}`}>
-                      {initials(patient.name)}
-                    </div>
-                    <div>
-                      <p className="font-semibold text-slate-950">
-                        {patient.name}
-                      </p>
-                      <p className="text-xs text-slate-500">
-                        {patient.phone_number || "—"}
-                      </p>
-                    </div>
-                  </div>
-                  <p className="shrink-0 text-xs text-slate-500">
-                    {formatDate(String(patient.created_at || "").slice(0, 10))}
-                  </p>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-      </div>
 
 
       {/* ── Create Appointment drawer ── */}
