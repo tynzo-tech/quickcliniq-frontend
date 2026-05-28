@@ -11,7 +11,7 @@ import Privacy from "./pages/Privacy";
 import ChangePassword from "./pages/ChangePassword";
 import Appearance from "./pages/Appearance";
 import Dashboard from "./pages/Dashboard";
-import Doctors from "./pages/Doctors";
+import Doctors from "./doctors/pages/Doctors";
 import Profile from "./pages/Profile";
 import Security from "./pages/Security";
 import VerifyOtp from "./pages/VerifyOtp";
