@@ -77,7 +77,7 @@ function initials(name) {
 
 function statusLabel(status) {
   const s = String(status || "").toLowerCase();
-  if (s === "completed") return { label: "Confirmed", cls: "bg-teal-50 text-teal-700" };
+  if (s === "completed") return { label: "Completed", cls: "bg-teal-50 text-teal-700" };
   if (s === "no-show") return { label: "No-show", cls: "bg-red-50 text-red-700" };
   if (s === "cancelled") return { label: "Cancelled", cls: "bg-red-50 text-red-700" };
   return { label: "Waiting", cls: "bg-amber-50 text-amber-700" };
@@ -707,12 +707,14 @@ export default function Dashboard() {
         <div className="fixed inset-0 z-50 flex justify-end bg-slate-950/30">
           <form
             onSubmit={createAppointment}
-            className="h-full w-full max-w-xl overflow-y-auto border-l border-slate-200 bg-white p-6 shadow-2xl"
+            className="flex h-full w-full max-w-xl flex-col border-l border-slate-200 bg-white shadow-2xl"
           >
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-slate-950">
-                Create Appointment
-              </h2>
+            {/* Sticky header */}
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-100 px-6 py-4">
+              <div>
+                <h2 className="text-lg font-semibold text-slate-950">Create Appointment</h2>
+                <span className="mt-1 inline-flex rounded-full bg-teal-50 px-2.5 py-0.5 text-xs font-semibold text-teal-700">Walk-in</span>
+              </div>
               <button
                 type="button"
                 onClick={() => setShowCreate(false)}
@@ -723,9 +725,8 @@ export default function Dashboard() {
               </button>
             </div>
 
-            <span className="mt-4 inline-flex rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-700">
-              Walk-in
-            </span>
+            {/* Scrollable body */}
+            <div className="flex-1 overflow-y-auto p-6">
 
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <label className="block">
@@ -864,6 +865,7 @@ export default function Dashboard() {
                 Book Visit
               </button>
             </div>
+            </div>{/* end scrollable body */}
           </form>
         </div>
       )}
