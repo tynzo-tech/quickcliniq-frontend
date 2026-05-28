@@ -115,11 +115,6 @@ export default function Layout({
       icon: Palette,
       name: "Appearance",
       path: "/settings/appearance"
-    },
-    {
-      icon: MessageCircle,
-      name: "Admin",
-      path: "/admin"
     }
   ];
 
