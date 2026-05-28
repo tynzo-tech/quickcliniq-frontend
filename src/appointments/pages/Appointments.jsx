@@ -12,119 +12,80 @@ import {
   Bell,
   CalendarCheck,
   CalendarClock,
+  CalendarDays,
   CheckCircle,
+  ChevronLeft,
+  ChevronRight,
   Loader2,
+  MoreVertical,
   Plus,
   RefreshCw,
   Search,
-  Stethoscope,
-  UserPlus,
+  UserRound,
   X
 } from "lucide-react";
 
-import Layout
-from "../../components/Layout";
+import Layout from "../../components/Layout";
 
-import {
-  apiUrl
-} from "../../config/api";
+import { apiUrl } from "../../config/api";
 
 
-function StatCard({
-  icon: Icon,
-  label,
-  value,
-  tone = "slate"
-}) {
+const PAGE_SIZE = 15;
 
-  const tones = {
-    slate: "bg-slate-100 text-slate-800",
-    teal: "bg-teal-50 text-teal-700",
-    cyan: "bg-cyan-50 text-cyan-700",
-    amber: "bg-amber-50 text-amber-700"
-  };
 
+function StatCard({ label, value, icon: Icon }) {
   return (
-    <div className="rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="flex items-center justify-between gap-4">
-        <div>
-          <p className="text-sm font-medium text-slate-500">
-            {label}
-          </p>
-          <p className="mt-2 text-3xl font-semibold tracking-tight text-slate-950">
-            {value}
-          </p>
-        </div>
-        <div className={`flex h-11 w-11 items-center justify-center rounded-lg ${tones[tone] || tones.slate}`}>
-          <Icon size={21} />
-        </div>
+    <div className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <p className="text-sm text-slate-500">{label}</p>
+      <div className="mt-2 flex items-end justify-between gap-2">
+        <p className="text-3xl font-semibold tracking-tight text-slate-950">{value}</p>
+        <Icon size={22} className="text-slate-400" />
       </div>
     </div>
   );
 }
 
 
-function statusClass(status) {
+function StatusBadge({ status }) {
 
-  const normalized =
-    String(status || "").toLowerCase();
+  const s = String(status || "").toLowerCase();
 
-  if (
-    normalized.includes("book")
-    || normalized.includes("confirm")
-  ) {
+  let cls = "bg-slate-100 text-slate-600";
+  let label = status || "Pending";
 
-    return "bg-teal-50 text-teal-700";
+  if (s.includes("book") || s.includes("confirm")) {
+    cls = "bg-teal-50 text-teal-700";
+    label = "Booked";
+  } else if (s.includes("cancel")) {
+    cls = "bg-red-50 text-red-700";
+    label = "Cancelled";
+  } else if (s.includes("no") && s.includes("show")) {
+    cls = "bg-orange-50 text-orange-700";
+    label = "No-show";
+  } else if (s.includes("complet")) {
+    cls = "bg-green-50 text-green-700";
+    label = "Completed";
   }
 
-  if (normalized.includes("cancel")) {
-
-    return "bg-red-50 text-red-700";
-  }
-
-  return "bg-slate-100 text-slate-700";
+  return (
+    <span className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-semibold ${cls}`}>
+      {label}
+    </span>
+  );
 }
 
 
-function urgencyClass(daysUntil) {
+function formatDate(value) {
 
-  if (daysUntil < 0) return "bg-red-50 text-red-700";
-  if (daysUntil <= 3) return "bg-orange-50 text-orange-700";
-  if (daysUntil <= 7) return "bg-amber-50 text-amber-700";
-
-  return "bg-teal-50 text-teal-700";
-}
-
-
-function urgencyLabel(daysUntil) {
-
-  if (daysUntil < 0) return `${Math.abs(daysUntil)}d overdue`;
-  if (daysUntil === 0) return "Today";
-  if (daysUntil === 1) return "Tomorrow";
-
-  return `In ${daysUntil} days`;
-}
-
-
-function formatAppointmentDate(value) {
-
-  if (!value) {
-
-    return "-";
-  }
+  if (!value) return null;
 
   try {
 
-    return new Intl.DateTimeFormat(
-      "en-IN",
-      {
-        day: "2-digit",
-        month: "short",
-        year: "numeric"
-      }
-    ).format(
-      new Date(`${value}T00:00:00`)
-    );
+    return new Intl.DateTimeFormat("en-IN", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric"
+    }).format(new Date(`${value}T00:00:00`));
 
   } catch {
 
@@ -133,1365 +94,985 @@ function formatAppointmentDate(value) {
 }
 
 
-function Field({
-  label,
-  children
-}) {
-
+function Field({ label, children }) {
   return (
     <label className="block">
       <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
         {label}
       </span>
-      <div className="mt-1.5">
-        {children}
-      </div>
+      <div className="mt-1.5">{children}</div>
     </label>
   );
 }
 
 
-const inputClass =
+const inputCls =
   "min-h-11 w-full rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-800 outline-none transition placeholder:text-slate-400 focus:border-teal-500 focus:ring-4 focus:ring-teal-50";
 
 
 export default function Appointments() {
 
-  const clinicId =
-    localStorage.getItem(
-      "clinic_id"
-    );
+  const clinicId = localStorage.getItem("clinic_id");
+  const todayStr = new Date().toISOString().split("T")[0];
 
-  const [appointments, setAppointments] =
-    useState([]);
+  // ─── Data ───────────────────────────────────────────
+  const [appointments, setAppointments] = useState([]);
+  const [shifts, setShifts] = useState([]);
+  const [doctors, setDoctors] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
-  const [shifts, setShifts] =
-    useState([]);
+  // ─── Filters ────────────────────────────────────────
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
+  const [dateFilter, setDateFilter] = useState("");
+  const [doctorFilter, setDoctorFilter] = useState("all");
 
-  const [doctors, setDoctors] =
-    useState([]);
+  // ─── UI state ───────────────────────────────────────
+  const [activeTab, setActiveTab] = useState("appointments");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [openMenuId, setOpenMenuId] = useState(null);
 
-  const [loading, setLoading] =
-    useState(true);
+  // ─── Action states ──────────────────────────────────
+  const [cancellingId, setCancellingId] = useState(null);
+  const [markingId, setMarkingId] = useState(null);
 
-  const [error, setError] =
-    useState("");
+  // ─── Create appointment modal ────────────────────────
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [slotLoading, setSlotLoading] = useState(false);
+  const [manualSlots, setManualSlots] = useState([]);
+  const [manualForm, setManualForm] = useState({
+    doctor_id: "",
+    doctor_name: "",
+    appointment_date: "",
+    appointment_time: "",
+    follow_up_date: "",
+    patient_name: "",
+    patient_age: "",
+    patient_gender: "",
+    phone_number: "",
+    health_issue: ""
+  });
 
-  const [query, setQuery] =
-    useState("");
+  // ─── Follow-up modal ────────────────────────────────
+  const [showFollowUpModal, setShowFollowUpModal] = useState(false);
+  const [selectedForFollowUp, setSelectedForFollowUp] = useState(null);
+  const [followUpDate, setFollowUpDate] = useState("");
+  const [savingFollowUp, setSavingFollowUp] = useState(false);
 
-  const [statusFilter, setStatusFilter] =
-    useState("all");
+  // ─── Reminders ──────────────────────────────────────
+  const [sendingReminderId, setSendingReminderId] = useState(null);
+  const [reminderSentIds, setReminderSentIds] = useState(new Set());
 
-  const [doctorFilter, setDoctorFilter] =
-    useState("all");
+  // ─── Fetch ──────────────────────────────────────────
+  const fetchAppointments = useCallback(async () => {
 
-  const [cancellingId, setCancellingId] =
-    useState(null);
+    try {
 
-  const [creating, setCreating] =
-    useState(false);
+      setLoading(true);
+      setError("");
 
-  const [slotLoading, setSlotLoading] =
-    useState(false);
+      const [apptRes, shiftsRes, doctorsRes] = await Promise.all([
+        axios.get(apiUrl("/appointments"), { params: { clinic_id: clinicId } }),
+        axios.get(apiUrl(`/shifts/${clinicId}`)),
+        axios.get(apiUrl("/doctors"), { params: { clinic_id: clinicId } })
+      ]);
 
-  const [manualSlots, setManualSlots] =
-    useState([]);
+      setAppointments(Array.isArray(apptRes.data) ? apptRes.data : []);
 
-  const [manualForm, setManualForm] =
-    useState({
-      doctor_id: "",
-      doctor_name: "",
-      appointment_date: "",
-      appointment_time: "",
-      follow_up_date: "",
-      patient_name: "",
-      patient_age: "",
-      patient_gender: "",
-      phone_number: "",
-      health_issue: ""
-    });
+      const activeShifts = Array.isArray(shiftsRes.data)
+        ? shiftsRes.data.filter((s) => s.is_active)
+        : [];
 
-  const [activeTab, setActiveTab] =
-    useState("appointments");
+      setShifts(activeShifts);
 
-  const [showFollowUpModal, setShowFollowUpModal] =
-    useState(false);
+      const activeDoctors = Array.isArray(doctorsRes.data)
+        ? doctorsRes.data.filter((d) => d.is_active !== false)
+        : [];
 
-  const [selectedForFollowUp, setSelectedForFollowUp] =
-    useState(null);
+      setDoctors(activeDoctors);
 
-  const [followUpDate, setFollowUpDate] =
-    useState("");
+      setManualForm((f) => ({
+        ...f,
+        doctor_id: f.doctor_id || activeDoctors[0]?.id || activeShifts[0]?.doctor_id || "",
+        doctor_name:
+          f.doctor_name ||
+          activeDoctors[0]?.name ||
+          activeDoctors[0]?.doctor_name ||
+          activeShifts[0]?.doctor_name ||
+          ""
+      }));
 
-  const [savingFollowUp, setSavingFollowUp] =
-    useState(false);
+    } catch (e) {
 
-  const [sendingReminderId, setSendingReminderId] =
-    useState(null);
+      setError(e.response?.data?.detail || "Failed to load appointments");
 
-  const [reminderSentIds, setReminderSentIds] =
-    useState(new Set());
+    } finally {
 
-  const fetchAppointments =
-    useCallback(async () => {
+      setLoading(false);
+    }
 
-      try {
-
-        setLoading(true);
-        setError("");
-
-        const [
-          appointmentsResponse,
-          shiftsResponse,
-          doctorsResponse
-        ] = await Promise.all([
-          axios.get(
-            apiUrl("/appointments"),
-            {
-              params: {
-                clinic_id: clinicId
-              }
-            }
-          ),
-          axios.get(
-            apiUrl(`/shifts/${clinicId}`)
-          ),
-          axios.get(
-            apiUrl("/doctors"),
-            {
-              params: {
-                clinic_id: clinicId
-              }
-            }
-          )
-        ]);
-
-        setAppointments(
-          Array.isArray(appointmentsResponse.data)
-            ? appointmentsResponse.data
-            : []
-        );
-
-        const activeShifts =
-          Array.isArray(shiftsResponse.data)
-            ? shiftsResponse.data.filter((shift) => shift.is_active)
-            : [];
-
-        setShifts(
-          activeShifts
-        );
-
-        const activeDoctors =
-          Array.isArray(doctorsResponse.data)
-            ? doctorsResponse.data.filter((doctor) => doctor.is_active !== false)
-            : [];
-
-        setDoctors(
-          activeDoctors
-        );
-
-        setManualForm((current) => ({
-          ...current,
-          doctor_id:
-            current.doctor_id
-            || activeDoctors[0]?.id
-            || activeShifts[0]?.doctor_id
-            || "",
-          doctor_name:
-            current.doctor_name
-            || activeDoctors[0]?.name
-            || activeDoctors[0]?.doctor_name
-            || activeShifts[0]?.doctor_name
-            || ""
-        }));
-
-      } catch (error) {
-
-        console.log(error);
-
-        setError(
-          error.response?.data?.detail ||
-            "Failed to load appointments"
-        );
-
-      } finally {
-
-        setLoading(false);
-      }
-    }, [clinicId]);
+  }, [clinicId]);
 
   useEffect(() => {
 
-    const timer =
-      window.setTimeout(() => {
-
-        fetchAppointments();
-
-      }, 0);
-
-    return () =>
-      window.clearTimeout(timer);
+    const t = window.setTimeout(fetchAppointments, 0);
+    return () => window.clearTimeout(t);
 
   }, [fetchAppointments]);
 
-  const statusOptions =
-    useMemo(() => [
-      "all",
-      ...new Set(
-        appointments
-          .map((appointment) => appointment.status)
-          .filter(Boolean)
-      )
-    ], [appointments]);
+  // ─── Doctor options ─────────────────────────────────
+  const doctorOptions = useMemo(() => {
 
-  const doctorOptions =
-    useMemo(() => {
+    const map = new Map();
 
-      const doctorMap = new Map();
+    doctors.forEach((d) => {
+      const id = d.id ? String(d.id) : d.doctor_name || d.name;
+      if (!id || map.has(id)) return;
+      map.set(id, { id, doctor_id: d.id || "", doctor_name: d.doctor_name || d.name });
+    });
 
-      doctors.forEach((doctor) => {
+    shifts.forEach((s) => {
+      const id = s.doctor_id ? String(s.doctor_id) : s.doctor_name;
+      if (!id || map.has(id)) return;
+      map.set(id, { id, doctor_id: s.doctor_id || "", doctor_name: s.doctor_name });
+    });
 
-        const id =
-          doctor.id
-            ? String(doctor.id)
-            : doctor.doctor_name || doctor.name;
+    appointments.forEach((a) => {
+      const id = a.doctor_id ? String(a.doctor_id) : a.doctor_name;
+      if (!id || map.has(id)) return;
+      map.set(id, { id, doctor_id: a.doctor_id || "", doctor_name: a.doctor_name });
+    });
 
-        if (!id || doctorMap.has(id)) {
+    return Array.from(map.values());
 
-          return;
-        }
-
-        doctorMap.set(id, {
-          id,
-          doctor_id: doctor.id || "",
-          doctor_name: doctor.doctor_name || doctor.name
-        });
-      });
-
-      shifts.forEach((shift) => {
-
-        const id =
-          shift.doctor_id
-            ? String(shift.doctor_id)
-            : shift.doctor_name;
-
-        if (!id || doctorMap.has(id)) {
-
-          return;
-        }
-
-        doctorMap.set(id, {
-          id,
-          doctor_id: shift.doctor_id || "",
-          doctor_name: shift.doctor_name
-        });
-      });
-
-      appointments.forEach((appointment) => {
-
-        const id =
-          appointment.doctor_id
-            ? String(appointment.doctor_id)
-            : appointment.doctor_name;
-
-        if (!id || doctorMap.has(id)) {
-
-          return;
-        }
-
-        doctorMap.set(id, {
-          id,
-          doctor_id: appointment.doctor_id || "",
-          doctor_name: appointment.doctor_name
-        });
-      });
-
-      return Array.from(
-        doctorMap.values()
-      );
-
-    }, [
-      appointments,
-      doctors,
-      shifts
-    ]);
+  }, [appointments, doctors, shifts]);
 
   const effectiveDoctorFilter =
-    doctorOptions.length === 1
-      ? doctorOptions[0].id
-      : doctorFilter;
+    doctorOptions.length === 1 ? doctorOptions[0].id : doctorFilter;
 
   const selectedDoctor =
-    doctorOptions.find((doctor) =>
-      doctor.id === effectiveDoctorFilter
-    );
+    doctorOptions.find((d) => d.id === effectiveDoctorFilter);
 
-  const filteredAppointments =
-    useMemo(() => {
+  // ─── Filtered appointments ───────────────────────────
+  const filteredAppointments = useMemo(() => {
 
-      const normalizedQuery =
-        query.trim().toLowerCase();
+    const q = query.trim().toLowerCase();
 
-      return appointments.filter((appointment) => {
+    return appointments.filter((a) => {
 
-        const matchesStatus =
-          statusFilter === "all"
-          || appointment.status === statusFilter;
+      const matchStatus =
+        statusFilter === "all" || a.status === statusFilter;
 
-        const matchesDoctor =
-          effectiveDoctorFilter === "all"
-          || String(appointment.doctor_id || "") === effectiveDoctorFilter
-          || (
-            !appointment.doctor_id
-            && selectedDoctor?.doctor_name
-            && appointment.doctor_name === selectedDoctor.doctor_name
-          );
+      const matchDoctor =
+        effectiveDoctorFilter === "all" ||
+        String(a.doctor_id || "") === effectiveDoctorFilter ||
+        (!a.doctor_id && selectedDoctor?.doctor_name && a.doctor_name === selectedDoctor.doctor_name);
 
-        const searchable = [
-          appointment.patient_name,
-          appointment.phone_number,
-          appointment.gender,
-          appointment.created_by,
-          appointment.doctor_name,
-          appointment.problem,
-          appointment.appointment_date,
-          appointment.follow_up_date,
-          appointment.appointment_time
-        ]
-          .filter(Boolean)
-          .join(" ")
-          .toLowerCase();
+      const matchDate =
+        !dateFilter || a.appointment_date === dateFilter;
 
-        return matchesStatus
-          && matchesDoctor
-          && (
-            !normalizedQuery
-            || searchable.includes(normalizedQuery)
-          );
+      const searchable = [
+        a.patient_name,
+        a.phone_number,
+        a.gender,
+        a.doctor_name,
+        a.problem,
+        a.appointment_date,
+        a.appointment_time
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return matchStatus && matchDoctor && matchDate && (!q || searchable.includes(q));
+    });
+
+  }, [appointments, effectiveDoctorFilter, query, dateFilter, selectedDoctor, statusFilter]);
+
+  // ─── Stats (from all appointments) ──────────────────
+  const stats = useMemo(() => {
+
+    return {
+      total: appointments.length,
+      booked: appointments.filter((a) =>
+        String(a.status || "").toLowerCase().includes("book")
+      ).length,
+      cancelled: appointments.filter((a) =>
+        String(a.status || "").toLowerCase().includes("cancel")
+      ).length,
+      noShow: appointments.filter((a) => {
+        const s = String(a.status || "").toLowerCase();
+        return s.includes("no") && s.includes("show");
+      }).length,
+      followUps: appointments.filter((a) =>
+        a.follow_up_date && a.status !== "cancelled"
+      ).length,
+      today: appointments.filter((a) =>
+        a.appointment_date === todayStr
+      ).length
+    };
+
+  }, [appointments, todayStr]);
+
+  // ─── Follow-ups list ────────────────────────────────
+  const followUps = useMemo(() => {
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    return appointments
+      .filter((a) => a.follow_up_date && a.status !== "cancelled")
+      .map((a) => {
+        const followDay = new Date(`${a.follow_up_date}T00:00:00`);
+        const daysUntil = Math.ceil((followDay - today) / (1000 * 60 * 60 * 24));
+        return { ...a, days_until_follow_up: daysUntil };
+      })
+      .filter((a) => a.days_until_follow_up === 1)
+      .sort((a, b) => a.days_until_follow_up - b.days_until_follow_up);
+
+  }, [appointments]);
+
+  // ─── Pagination ─────────────────────────────────────
+  const totalPages = Math.max(1, Math.ceil(filteredAppointments.length / PAGE_SIZE));
+
+  const pagedAppointments = filteredAppointments.slice(
+    (currentPage - 1) * PAGE_SIZE,
+    currentPage * PAGE_SIZE
+  );
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [query, statusFilter, dateFilter, doctorFilter, activeTab]);
+
+  // ─── Filters ────────────────────────────────────────
+  const hasFilters = query || statusFilter !== "all" || dateFilter;
+
+  const clearFilters = useCallback(() => {
+    setQuery("");
+    setStatusFilter("all");
+    setDateFilter("");
+  }, []);
+
+  // ─── Status options ──────────────────────────────────
+  const statusOptions = useMemo(() => [
+    "all",
+    ...new Set(appointments.map((a) => a.status).filter(Boolean))
+  ], [appointments]);
+
+  // ─── Create appointment ──────────────────────────────
+  const loadManualSlots = useCallback(async () => {
+
+    if (!manualForm.doctor_name || !manualForm.appointment_date) {
+      setError("Choose doctor and appointment date first.");
+      return;
+    }
+
+    try {
+
+      setSlotLoading(true);
+      setError("");
+
+      const res = await axios.get(apiUrl("/available-slots"), {
+        params: {
+          clinic_id: clinicId,
+          doctor_id: manualForm.doctor_id || undefined,
+          doctor_name: manualForm.doctor_name,
+          appointment_date: manualForm.appointment_date
+        }
       });
 
-    }, [
-      appointments,
-      effectiveDoctorFilter,
-      query,
-      selectedDoctor,
-      statusFilter
-    ]);
-
-  const confirmedCount =
-    filteredAppointments.filter((appointment) =>
-      String(appointment.status || "")
-        .toLowerCase()
-        .includes("book")
-    ).length;
-
-  const doctorCount =
-    new Set(
-      filteredAppointments
-        .map((appointment) => appointment.doctor_name)
-        .filter(Boolean)
-    ).size;
-
-  const followUps =
-    useMemo(() => {
-
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      return appointments
-        .filter((a) => a.follow_up_date && a.status !== "cancelled")
-        .map((a) => {
-
-          const followUpDay =
-            new Date(`${a.follow_up_date}T00:00:00`);
-
-          const daysUntil =
-            Math.ceil(
-              (followUpDay - today) / (1000 * 60 * 60 * 24)
-            );
-
-          return {
-            ...a,
-            days_until_follow_up: daysUntil
-          };
-        })
-        .filter((a) => a.days_until_follow_up === 1)
-        .sort((a, b) =>
-          a.days_until_follow_up - b.days_until_follow_up
-        );
-
-    }, [appointments]);
-
-  const loadManualSlots =
-    useCallback(async () => {
-
-      if (
-        !manualForm.doctor_name
-        || !manualForm.appointment_date
-      ) {
-
-        setError(
-          "Choose doctor and appointment date first."
-        );
-
-        return;
-      }
-
-      try {
-
-        setSlotLoading(true);
-        setError("");
-
-        const response =
-          await axios.get(
-            apiUrl("/available-slots"),
-            {
-              params: {
-                clinic_id: clinicId,
-                doctor_id: manualForm.doctor_id || undefined,
-                doctor_name: manualForm.doctor_name,
-                appointment_date: manualForm.appointment_date
-              }
-            }
-          );
-
-        setManualSlots(
-          response.data?.slots || []
-        );
-
-      } catch (error) {
-
-        console.log(error);
-
-        setError(
-          error.response?.data?.detail ||
-            "Failed to load slots"
-        );
-
-      } finally {
-
-        setSlotLoading(false);
-      }
-    }, [
-      clinicId,
-      manualForm.appointment_date,
-      manualForm.doctor_id,
-      manualForm.doctor_name
-    ]);
-
-  const updateManualForm =
-    useCallback((field, value) => {
-
-      setManualForm((current) => ({
-        ...current,
-        [field]: value,
-        ...(field === "doctor_id"
-          ? {
-              doctor_name:
-                doctorOptions.find((doctor) => doctor.id === value)
-                  ?.doctor_name || ""
-            }
-          : {}),
-        ...(field === "doctor_name"
-          || field === "doctor_id"
-          || field === "appointment_date"
-          ? {
-              appointment_time: ""
-            }
-          : {})
-      }));
-
-      if (
-        field === "doctor_name"
-        || field === "doctor_id"
-        || field === "appointment_date"
-      ) {
-
-        setManualSlots([]);
-      }
-    }, [doctorOptions]);
-
-  const createManualAppointment =
-    useCallback(async (event) => {
-
-      event.preventDefault();
-
-      try {
-
-        setCreating(true);
-        setError("");
-
-        const payload = {
-          clinic_id: Number(clinicId),
-          ...manualForm
-        };
-
-        if (!payload.follow_up_date) {
-          delete payload.follow_up_date;
-        }
-
-        await axios.post(
-          apiUrl("/appointments"),
-          payload
-        );
-
-        setManualForm({
-          doctor_id: doctorOptions[0]?.doctor_id || shifts[0]?.doctor_id || "",
-          doctor_name: doctorOptions[0]?.doctor_name || shifts[0]?.doctor_name || "",
-          appointment_date: "",
-          appointment_time: "",
-          follow_up_date: "",
-          patient_name: "",
-          patient_age: "",
-          patient_gender: "",
-          phone_number: "",
-          health_issue: ""
-        });
-        setManualSlots([]);
-
-        await fetchAppointments();
-
-      } catch (error) {
-
-        console.log(error);
-
-        setError(
-          error.response?.data?.detail ||
-            "Failed to create appointment"
-        );
-
-      } finally {
-
-        setCreating(false);
-      }
-    }, [
-      clinicId,
-      doctorOptions,
-      fetchAppointments,
-      manualForm,
-      shifts
-    ]);
-
-  const openFollowUpModal =
-    useCallback((appointment) => {
-
-      setSelectedForFollowUp(appointment);
-      setFollowUpDate(appointment.follow_up_date || "");
-      setShowFollowUpModal(true);
-
-    }, []);
-
-  const closeFollowUpModal =
-    useCallback(() => {
-
-      setShowFollowUpModal(false);
-      setSelectedForFollowUp(null);
-      setFollowUpDate("");
-
-    }, []);
-
-  const saveFollowUp =
-    useCallback(async (event) => {
-
-      event.preventDefault();
-
-      if (!selectedForFollowUp || !followUpDate) {
-        return;
-      }
-
-      try {
-
-        setSavingFollowUp(true);
-        setError("");
-
-        await axios.patch(
-          apiUrl(`/appointments/${selectedForFollowUp.id}/follow-up`),
-          {
-            clinic_id: Number(clinicId),
-            follow_up_date: followUpDate
-          }
-        );
-
-        closeFollowUpModal();
-        await fetchAppointments();
-
-      } catch (error) {
-
-        console.log(error);
-
-        setError(
-          error.response?.data?.detail ||
-            "Failed to set follow-up date"
-        );
-
-      } finally {
-
-        setSavingFollowUp(false);
-      }
-
-    }, [
-      clinicId,
-      closeFollowUpModal,
-      fetchAppointments,
-      followUpDate,
-      selectedForFollowUp
-    ]);
-
-  const sendReminder =
-    useCallback(async (appointment) => {
-
-      try {
-
-        setSendingReminderId(appointment.id);
-        setError("");
-
-        await axios.post(
-          apiUrl(`/appointments/${appointment.id}/follow-up/remind`),
-          null,
-          {
-            params: {
-              clinic_id: clinicId
-            }
-          }
-        );
-
-        setReminderSentIds((prev) =>
-          new Set([...prev, appointment.id])
-        );
-
-      } catch (error) {
-
-        console.log(error);
-
-        setError(
-          error.response?.data?.detail ||
-            "Failed to send reminder"
-        );
-
-      } finally {
-
-        setSendingReminderId(null);
-      }
-
-    }, [clinicId]);
-
-  const cancelAppointment =
-    useCallback(async (appointment) => {
-
-      const confirmed =
-        window.confirm(
-          `Cancel appointment #${appointment.appointment_no || appointment.id}?`
-        );
-
-      if (!confirmed) {
-
-        return;
-      }
-
-      try {
-
-        setCancellingId(
-          appointment.id
-        );
-
-        await axios.put(
-          apiUrl(`/appointments/${appointment.id}/cancel`),
-          null,
-          {
-            params: {
-              clinic_id: clinicId
-            }
-          }
-        );
-
-        await fetchAppointments();
-
-      } catch (error) {
-
-        console.log(error);
-
-        setError(
-          error.response?.data?.detail ||
-            "Failed to cancel appointment"
-        );
-
-      } finally {
-
-        setCancellingId(null);
-      }
-    }, [
-      clinicId,
-      fetchAppointments
-    ]);
-
-  const today =
-    new Date().toISOString().split("T")[0];
+      setManualSlots(res.data?.slots || []);
+
+    } catch (e) {
+
+      setError(e.response?.data?.detail || "Failed to load slots");
+
+    } finally {
+
+      setSlotLoading(false);
+    }
+
+  }, [clinicId, manualForm.appointment_date, manualForm.doctor_id, manualForm.doctor_name]);
+
+  const updateManualForm = useCallback((field, value) => {
+
+    setManualForm((f) => ({
+      ...f,
+      [field]: value,
+      ...(field === "doctor_id"
+        ? { doctor_name: doctorOptions.find((d) => d.id === value)?.doctor_name || "" }
+        : {}),
+      ...((field === "doctor_name" || field === "doctor_id" || field === "appointment_date")
+        ? { appointment_time: "" }
+        : {})
+    }));
+
+    if (field === "doctor_name" || field === "doctor_id" || field === "appointment_date") {
+      setManualSlots([]);
+    }
+
+  }, [doctorOptions]);
+
+  const createManualAppointment = useCallback(async (e) => {
+
+    e.preventDefault();
+
+    try {
+
+      setCreating(true);
+      setError("");
+
+      const payload = { clinic_id: Number(clinicId), ...manualForm };
+      if (!payload.follow_up_date) delete payload.follow_up_date;
+
+      await axios.post(apiUrl("/appointments"), payload);
+
+      setManualForm({
+        doctor_id: doctorOptions[0]?.doctor_id || shifts[0]?.doctor_id || "",
+        doctor_name: doctorOptions[0]?.doctor_name || shifts[0]?.doctor_name || "",
+        appointment_date: "",
+        appointment_time: "",
+        follow_up_date: "",
+        patient_name: "",
+        patient_age: "",
+        patient_gender: "",
+        phone_number: "",
+        health_issue: ""
+      });
+
+      setManualSlots([]);
+      setShowCreateModal(false);
+      await fetchAppointments();
+
+    } catch (e) {
+
+      setError(e.response?.data?.detail || "Failed to create appointment");
+
+    } finally {
+
+      setCreating(false);
+    }
+
+  }, [clinicId, doctorOptions, fetchAppointments, manualForm, shifts]);
+
+  // ─── Follow-up modal ────────────────────────────────
+  const openFollowUpModal = useCallback((appt) => {
+    setSelectedForFollowUp(appt);
+    setFollowUpDate(appt.follow_up_date || "");
+    setShowFollowUpModal(true);
+    setOpenMenuId(null);
+  }, []);
+
+  const closeFollowUpModal = useCallback(() => {
+    setShowFollowUpModal(false);
+    setSelectedForFollowUp(null);
+    setFollowUpDate("");
+  }, []);
+
+  const saveFollowUp = useCallback(async (e) => {
+
+    e.preventDefault();
+    if (!selectedForFollowUp || !followUpDate) return;
+
+    try {
+
+      setSavingFollowUp(true);
+      setError("");
+
+      await axios.patch(
+        apiUrl(`/appointments/${selectedForFollowUp.id}/follow-up`),
+        { clinic_id: Number(clinicId), follow_up_date: followUpDate }
+      );
+
+      closeFollowUpModal();
+      await fetchAppointments();
+
+    } catch (e) {
+
+      setError(e.response?.data?.detail || "Failed to set follow-up date");
+
+    } finally {
+
+      setSavingFollowUp(false);
+    }
+
+  }, [clinicId, closeFollowUpModal, fetchAppointments, followUpDate, selectedForFollowUp]);
+
+  // ─── Cancel appointment ──────────────────────────────
+  const cancelAppointment = useCallback(async (appt) => {
+
+    setOpenMenuId(null);
+
+    if (!window.confirm(`Cancel appointment for ${appt.patient_name || "this patient"}?`)) return;
+
+    try {
+
+      setCancellingId(appt.id);
+
+      await axios.put(apiUrl(`/appointments/${appt.id}/cancel`), null, {
+        params: { clinic_id: clinicId }
+      });
+
+      await fetchAppointments();
+
+    } catch (e) {
+
+      setError(e.response?.data?.detail || "Failed to cancel appointment");
+
+    } finally {
+
+      setCancellingId(null);
+    }
+
+  }, [clinicId, fetchAppointments]);
+
+  // ─── Mark status ─────────────────────────────────────
+  const markStatus = useCallback(async (appt, status) => {
+
+    setOpenMenuId(null);
+
+    try {
+
+      setMarkingId(appt.id);
+
+      await axios.patch(apiUrl(`/appointments/${appt.id}/status`), {
+        clinic_id: Number(clinicId),
+        status
+      });
+
+      await fetchAppointments();
+
+    } catch (e) {
+
+      setError(e.response?.data?.detail || `Failed to mark as ${status}`);
+
+    } finally {
+
+      setMarkingId(null);
+    }
+
+  }, [clinicId, fetchAppointments]);
+
+  // ─── Send reminder ────────────────────────────────────
+  const sendReminder = useCallback(async (appt) => {
+
+    try {
+
+      setSendingReminderId(appt.id);
+      setError("");
+
+      await axios.post(
+        apiUrl(`/appointments/${appt.id}/follow-up/remind`),
+        null,
+        { params: { clinic_id: clinicId } }
+      );
+
+      setReminderSentIds((prev) => new Set([...prev, appt.id]));
+
+    } catch (e) {
+
+      setError(e.response?.data?.detail || "Failed to send reminder");
+
+    } finally {
+
+      setSendingReminderId(null);
+    }
+
+  }, [clinicId]);
+
+  const headerDoctorName = selectedDoctor?.doctor_name || doctorOptions[0]?.doctor_name || "";
 
   return (
     <Layout
-      title="Appointments"
-      subtitle="Search, filter, and review patient bookings from one clean workspace."
+      title={`Appointments${headerDoctorName ? ` — ${headerDoctorName}` : ""}`}
       actions={(
-        <button
-          type="button"
-          onClick={fetchAppointments}
-          disabled={loading}
-          className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:border-teal-200 hover:bg-teal-50 hover:text-slate-950 disabled:opacity-60"
-        >
-          <RefreshCw
-            size={16}
-            className={loading ? "animate-spin" : ""}
-          />
-          Refresh
-        </button>
+        <div className="flex items-center gap-2">
+          {doctorOptions.length > 1 && (
+            <div className="relative">
+              <UserRound
+                size={14}
+                className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+              />
+              <select
+                value={effectiveDoctorFilter}
+                onChange={(e) => setDoctorFilter(e.target.value)}
+                className="min-h-10 appearance-none rounded-lg border border-slate-200 bg-white pl-8 pr-6 text-sm font-medium text-slate-700 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+              >
+                <option value="all">All doctors</option>
+                {doctorOptions.map((d) => (
+                  <option key={d.id} value={d.id}>{d.doctor_name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          <button
+            type="button"
+            onClick={() => setShowCreateModal(true)}
+            className="inline-flex min-h-10 items-center gap-2 rounded-lg bg-teal-700 px-4 text-sm font-semibold text-white transition hover:bg-teal-800"
+          >
+            <Plus size={16} />
+            Create Appointment
+          </button>
+          <button
+            type="button"
+            onClick={fetchAppointments}
+            disabled={loading}
+            className="inline-flex min-h-10 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50 disabled:opacity-60"
+          >
+            <RefreshCw size={15} className={loading ? "animate-spin" : ""} />
+            Refresh
+          </button>
+        </div>
       )}
     >
+
+      {/* Error */}
       {error && (
-        <div className="mb-5 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
+        <div className="mb-4 rounded-lg border border-red-100 bg-red-50 px-4 py-3 text-sm text-red-700">
           {error}
         </div>
       )}
 
-      <div className="grid gap-4 md:grid-cols-3">
-        <StatCard
-          icon={CalendarCheck}
-          label="Total appointments"
-          value={filteredAppointments.length}
-          tone="slate"
-        />
-        <StatCard
-          icon={CalendarCheck}
-          label="Confirmed"
-          value={confirmedCount}
-          tone="teal"
-        />
-        <StatCard
-          icon={Stethoscope}
-          label="Doctors"
-          value={
-            effectiveDoctorFilter === "all"
-              ? doctorCount
-              : 1
-          }
-          tone="cyan"
-        />
-      </div>
-
-      <section className="mt-6 rounded-lg border border-slate-200 bg-white p-5 shadow-sm">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-lg bg-teal-50 px-2.5 py-1 text-xs font-semibold text-teal-700">
-              <UserPlus size={14} />
-              Walk-in
-            </div>
-            <h2 className="mt-3 text-lg font-semibold text-slate-950">
-              Book a physical visit
-            </h2>
-            <p className="mt-1 max-w-2xl text-sm leading-6 text-slate-500">
-              Create a physical visit appointment using available doctor slots.
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={loadManualSlots}
-            disabled={slotLoading}
-            className="inline-flex min-h-10 items-center justify-center gap-2 rounded-lg border border-teal-100 bg-teal-50 px-3 text-sm font-semibold text-teal-700 transition hover:border-teal-200 hover:bg-teal-100 disabled:opacity-60"
-          >
-            {slotLoading ? (
-              <Loader2
-                size={15}
-                className="animate-spin"
-              />
-            ) : (
-              <RefreshCw size={15} />
-            )}
-            Find slots
-          </button>
+      {/* Showing chip */}
+      {selectedDoctor && (
+        <div className="mb-5 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-sm text-slate-600 shadow-sm">
+          <UserRound size={14} className="text-slate-400" />
+          Showing appointments for{" "}
+          <span className="font-semibold text-teal-700">{selectedDoctor.doctor_name}</span>
         </div>
+      )}
 
-        <form
-          onSubmit={createManualAppointment}
-          className="mt-5 grid gap-5 xl:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)]"
-        >
-          <div className="grid gap-3 rounded-lg border border-slate-100 bg-slate-50/60 p-4 sm:grid-cols-2">
-            <Field label="Doctor">
-              <select
-                value={manualForm.doctor_id || manualForm.doctor_name}
-                onChange={(event) =>
-                  updateManualForm(
-                    "doctor_id",
-                    event.target.value
-                  )
-                }
-                disabled={doctorOptions.length <= 1}
-                className={inputClass}
-                required
-              >
-                {doctorOptions.length === 0 && (
-                  <option value="">
-                    No doctors configured
-                  </option>
-                )}
-                {doctorOptions.map((doctor) => (
-                  <option
-                    key={doctor.id}
-                    value={doctor.id}
-                  >
-                    {doctor.doctor_name}
-                  </option>
-                ))}
-              </select>
-            </Field>
-
-            <Field label="Date">
-              <input
-                type="date"
-                value={manualForm.appointment_date}
-                onChange={(event) =>
-                  updateManualForm(
-                    "appointment_date",
-                    event.target.value
-                  )
-                }
-                className={inputClass}
-                required
-              />
-            </Field>
-
-            <Field label="Follow-up date (optional)">
-              <input
-                type="date"
-                value={manualForm.follow_up_date}
-                min={today}
-                onChange={(event) =>
-                  updateManualForm(
-                    "follow_up_date",
-                    event.target.value
-                  )
-                }
-                className={inputClass}
-              />
-            </Field>
-
-            <div className="sm:col-span-2">
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-                  Available slots
-                </span>
-                {manualSlots.length > 0 && (
-                  <span className="text-xs font-medium text-slate-500">
-                    {manualSlots.length} open
-                  </span>
-                )}
-              </div>
-              <div className="min-h-20 rounded-lg border border-slate-200 bg-white p-2">
-                {slotLoading ? (
-                  <div className="flex min-h-16 items-center justify-center text-sm text-slate-500">
-                    <Loader2 className="mr-2 animate-spin text-teal-600" size={16} />
-                    Checking slots
-                  </div>
-                ) : manualSlots.length === 0 ? (
-                  <div className="flex min-h-16 items-center justify-center text-sm text-slate-400">
-                    Choose doctor/date and find slots.
-                  </div>
-                ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {manualSlots.map((slot) => (
-                      <button
-                        key={slot}
-                        type="button"
-                        onClick={() =>
-                          updateManualForm(
-                            "appointment_time",
-                            slot
-                          )
-                        }
-                        className={`min-h-9 rounded-lg border px-3 text-sm font-semibold transition ${
-                          manualForm.appointment_time === slot
-                            ? "border-slate-950 bg-slate-950 text-white"
-                            : "border-slate-200 bg-white text-slate-700 hover:border-teal-200 hover:bg-teal-50"
-                        }`}
-                      >
-                        {slot}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Patient name">
-              <input
-                type="text"
-                placeholder="Patient name"
-                value={manualForm.patient_name}
-                onChange={(event) =>
-                  updateManualForm(
-                    "patient_name",
-                    event.target.value
-                  )
-                }
-                className={inputClass}
-                required
-              />
-            </Field>
-
-            <Field label="Phone">
-              <input
-                type="tel"
-                placeholder="Phone"
-                value={manualForm.phone_number}
-                onChange={(event) =>
-                  updateManualForm(
-                    "phone_number",
-                    event.target.value
-                  )
-                }
-                className={inputClass}
-                required
-              />
-            </Field>
-
-            <Field label="Age">
-              <input
-                type="text"
-                placeholder="Age"
-                value={manualForm.patient_age}
-                onChange={(event) =>
-                  updateManualForm(
-                    "patient_age",
-                    event.target.value
-                  )
-                }
-                className={inputClass}
-              />
-            </Field>
-
-            <Field label="Gender">
-              <input
-                type="text"
-                placeholder="Gender"
-                value={manualForm.patient_gender}
-                onChange={(event) =>
-                  updateManualForm(
-                    "patient_gender",
-                    event.target.value
-                  )
-                }
-                className={inputClass}
-              />
-            </Field>
-
-            <Field label="Health issue">
-              <input
-                type="text"
-                placeholder="Health issue"
-                value={manualForm.health_issue}
-                onChange={(event) =>
-                  updateManualForm(
-                    "health_issue",
-                    event.target.value
-                  )
-                }
-                className={inputClass}
-                required
-              />
-            </Field>
-
-            <div className="flex items-end">
-              <button
-                type="submit"
-                disabled={creating || !manualForm.appointment_time}
-                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {creating ? (
-                  <Loader2
-                    size={15}
-                    className="animate-spin"
-                  />
-                ) : (
-                  <Plus size={15} />
-                )}
-                Book visit
-              </button>
-            </div>
-          </div>
-        </form>
-      </section>
-
-      {/* Tab bar */}
-      <div className="mt-6 flex gap-1 rounded-xl border border-slate-200 bg-slate-50 p-1">
-        <button
-          type="button"
-          onClick={() => setActiveTab("appointments")}
-          className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition ${
-            activeTab === "appointments"
-              ? "bg-white text-slate-950 shadow-sm"
-              : "text-slate-500 hover:text-slate-700"
-          }`}
-        >
-          <CalendarCheck size={15} />
-          Appointment list
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("followups")}
-          className={`flex flex-1 items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold transition ${
-            activeTab === "followups"
-              ? "bg-white text-slate-950 shadow-sm"
-              : "text-slate-500 hover:text-slate-700"
-          }`}
-        >
-          <CalendarClock size={15} />
-          Follow-ups
-          {followUps.length > 0 && (
-            <span className={`rounded-full px-1.5 py-0.5 text-xs font-bold ${
-              followUps.length > 0
-                ? "bg-orange-100 text-orange-700"
-                : "bg-slate-200 text-slate-600"
-            }`}>
-              {followUps.length}
-            </span>
-          )}
-        </button>
+      {/* Stat cards */}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-6">
+        <StatCard label="Total" value={stats.total} icon={CalendarCheck} />
+        <StatCard label="Booked" value={stats.booked} icon={CheckCircle} />
+        <StatCard label="Cancelled" value={stats.cancelled} icon={Ban} />
+        <StatCard label="No-show" value={stats.noShow} icon={UserRound} />
+        <StatCard label="Follow-ups" value={stats.followUps} icon={CalendarClock} />
+        <StatCard label="Today" value={stats.today} icon={CalendarDays} />
       </div>
 
-      {/* ─── Appointment list tab ─── */}
-      {activeTab === "appointments" && (
-        <section className="mt-2 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
-          <div className="flex flex-col gap-4 border-b border-slate-100 p-5 lg:flex-row lg:items-center lg:justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-slate-950">
-                Appointment list
-              </h2>
-              <p className="mt-1 text-sm text-slate-500">
-                Showing {filteredAppointments.length} of {appointments.length} appointments.
-              </p>
-            </div>
-
-            <div className="flex flex-col gap-3 sm:flex-row">
-              <label className="flex min-h-11 min-w-0 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 focus-within:border-teal-600 focus-within:ring-4 focus-within:ring-teal-100 sm:w-72">
-                <Search
-                  size={17}
-                  className="shrink-0 text-slate-400"
-                />
-                <input
-                  type="search"
-                  placeholder="Search appointments"
-                  value={query}
-                  onChange={(event) =>
-                    setQuery(
-                      event.target.value
-                    )
-                  }
-                  className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
-                />
-              </label>
-
-              <label className="flex min-h-11 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 focus-within:border-teal-600 focus-within:ring-4 focus-within:ring-teal-100">
-                <Stethoscope
-                  size={17}
-                  className="shrink-0 text-slate-400"
-                />
-                <span className="sr-only">
-                  Viewing doctor
+      {/* Tabs */}
+      <div className="mt-6 border-b border-slate-200">
+        <div className="flex gap-6">
+          {[
+            { key: "appointments", label: "Appointment list" },
+            { key: "followups", label: "Follow-ups", badge: followUps.length }
+          ].map(({ key, label, badge }) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setActiveTab(key)}
+              className={`relative pb-3 text-sm font-semibold transition ${
+                activeTab === key
+                  ? "text-teal-700 after:absolute after:bottom-0 after:left-0 after:right-0 after:h-0.5 after:rounded-full after:bg-teal-600 after:content-['']"
+                  : "text-slate-500 hover:text-slate-700"
+              }`}
+            >
+              {label}
+              {badge > 0 && (
+                <span className="ml-2 rounded-full bg-orange-100 px-1.5 py-0.5 text-xs font-bold text-orange-700">
+                  {badge}
                 </span>
-                <select
-                  value={
-                    doctorOptions.length === 1
-                      ? doctorOptions[0].id
-                      : effectiveDoctorFilter
-                  }
-                  onChange={(event) =>
-                    setDoctorFilter(
-                      event.target.value
-                    )
-                  }
-                  disabled={doctorOptions.length <= 1}
-                  className="min-h-10 bg-transparent text-sm font-medium text-slate-700 outline-none disabled:cursor-not-allowed disabled:text-slate-500"
-                >
-                  {doctorOptions.length > 1 && (
-                    <option value="all">
-                      All doctors
-                    </option>
-                  )}
-                  {doctorOptions.length === 0 && (
-                    <option value="all">
-                      No doctors configured
-                    </option>
-                  )}
-                  {doctorOptions.map((doctor) => (
-                    <option
-                      key={doctor.id}
-                      value={doctor.id}
-                    >
-                      {doctor.doctor_name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
 
-              <select
-                value={statusFilter}
-                onChange={(event) =>
-                  setStatusFilter(
-                    event.target.value
-                  )
-                }
-                className="min-h-11 rounded-lg border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 outline-none focus:border-teal-600 focus:ring-4 focus:ring-teal-100"
+      {/* ─── Appointment list ─── */}
+      {activeTab === "appointments" && (
+        <section className="mt-4">
+
+          {/* Filter bar */}
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <label className="flex min-h-10 flex-1 items-center gap-2 rounded-lg border border-slate-200 bg-white px-3 focus-within:border-teal-500 focus-within:ring-2 focus-within:ring-teal-100 sm:max-w-72">
+              <Search size={15} className="shrink-0 text-slate-400" />
+              <input
+                type="search"
+                placeholder="Search appointments..."
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="w-full bg-transparent text-sm outline-none placeholder:text-slate-400"
+              />
+            </label>
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+            >
+              {statusOptions.map((s) => (
+                <option key={s} value={s}>
+                  {s === "all" ? "All statuses" : s}
+                </option>
+              ))}
+            </select>
+            <input
+              type="date"
+              value={dateFilter}
+              onChange={(e) => setDateFilter(e.target.value)}
+              placeholder="Select date"
+              className="min-h-10 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 outline-none focus:border-teal-500 focus:ring-2 focus:ring-teal-100"
+            />
+            {hasFilters && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="flex items-center gap-1.5 text-sm font-medium text-teal-700 hover:text-teal-900"
               >
-                {statusOptions.map((status) => (
-                  <option
-                    key={status}
-                    value={status}
-                  >
-                    {status === "all" ? "All statuses" : status}
-                  </option>
-                ))}
-              </select>
-            </div>
+                <RefreshCw size={13} />
+                Clear filters
+              </button>
+            )}
           </div>
 
-          {loading ? (
-            <div className="px-5 py-16 text-center text-sm text-slate-500">
-              <Loader2 className="mx-auto mb-3 animate-spin text-teal-600" />
-              Loading appointments...
-            </div>
-          ) : filteredAppointments.length === 0 ? (
-            <div className="px-5 py-16 text-center">
-              <p className="text-sm font-medium text-slate-700">
-                No appointments found.
-              </p>
-              <p className="mt-1 text-sm text-slate-500">
-                Try changing the search or status filter.
-              </p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-260 text-left text-sm">
-                <thead className="bg-slate-50 text-slate-600">
-                  <tr>
-                    <th className="px-5 py-3 font-semibold">Appointment</th>
-                    <th className="px-5 py-3 font-semibold">Patient</th>
-                    <th className="px-5 py-3 font-semibold">Doctor</th>
-                    <th className="px-5 py-3 font-semibold">Health Issue</th>
-                    <th className="px-5 py-3 font-semibold">Follow-up</th>
-                    <th className="px-5 py-3 font-semibold">Status</th>
-                    <th className="px-5 py-3 font-semibold">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredAppointments.map((appointment) => (
-                    <tr
-                      key={appointment.id}
-                      className="border-t border-slate-100 transition hover:bg-slate-50/80"
+          {/* Table */}
+          <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+            {loading ? (
+              <div className="flex items-center justify-center py-20 text-sm text-slate-500">
+                <Loader2 className="mr-2 animate-spin text-teal-600" size={18} />
+                Loading appointments...
+              </div>
+            ) : filteredAppointments.length === 0 ? (
+              <div className="py-20 text-center">
+                <p className="text-sm font-medium text-slate-700">No appointments found.</p>
+                {hasFilters && (
+                  <button
+                    type="button"
+                    onClick={clearFilters}
+                    className="mt-2 text-sm text-teal-700 hover:underline"
+                  >
+                    Clear filters
+                  </button>
+                )}
+              </div>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-215 text-left text-sm">
+                    <thead className="bg-slate-50">
+                      <tr>
+                        {["Time", "Patient", "Doctor", "Health Issue", "Follow-up", "Status", "Actions"].map((h) => (
+                          <th
+                            key={h}
+                            className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-slate-500"
+                          >
+                            {h}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pagedAppointments.map((appt) => {
+
+                        const isCancelled =
+                          String(appt.status || "").toLowerCase().includes("cancel");
+
+                        const isActing =
+                          cancellingId === appt.id || markingId === appt.id;
+
+                        return (
+                          <tr
+                            key={appt.id}
+                            className="border-t border-slate-100 transition hover:bg-slate-50/60"
+                          >
+                            {/* Time */}
+                            <td className="whitespace-nowrap px-5 py-4">
+                              <p className="text-xs text-slate-400">
+                                {formatDate(appt.appointment_date) || "—"}
+                              </p>
+                              <p className="mt-0.5 font-semibold text-slate-800">
+                                {appt.appointment_time || "—"}
+                              </p>
+                            </td>
+
+                            {/* Patient */}
+                            <td className="px-5 py-4">
+                              <p className="font-semibold text-slate-900">
+                                {appt.patient_name || "Patient"}
+                              </p>
+                              <p className="mt-0.5 text-xs text-slate-400">
+                                {appt.phone_number || ""}
+                                {appt.phone_number && appt.gender ? " · " : ""}
+                                {appt.gender || ""}
+                              </p>
+                            </td>
+
+                            {/* Doctor */}
+                            <td className="px-5 py-4 text-slate-700">
+                              {appt.doctor_name || "—"}
+                            </td>
+
+                            {/* Health Issue */}
+                            <td className="max-w-45 px-5 py-4 text-slate-600">
+                              <span className="line-clamp-2">
+                                {appt.problem === "WhatsApp booking"
+                                  ? "—"
+                                  : appt.problem || "—"}
+                              </span>
+                            </td>
+
+                            {/* Follow-up */}
+                            <td className="whitespace-nowrap px-5 py-4">
+                              {appt.follow_up_date ? (
+                                <span className="inline-flex items-center gap-1.5 text-xs font-medium text-orange-600">
+                                  <CalendarDays size={13} />
+                                  {formatDate(appt.follow_up_date)}
+                                </span>
+                              ) : (
+                                <span className="text-slate-300">—</span>
+                              )}
+                            </td>
+
+                            {/* Status */}
+                            <td className="px-5 py-4">
+                              <StatusBadge status={appt.status} />
+                            </td>
+
+                            {/* Actions — three-dot menu */}
+                            <td className="px-5 py-4">
+                              <div className="relative">
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setOpenMenuId(openMenuId === appt.id ? null : appt.id)
+                                  }
+                                  disabled={isActing}
+                                  className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 disabled:opacity-40"
+                                >
+                                  {isActing ? (
+                                    <Loader2 size={15} className="animate-spin" />
+                                  ) : (
+                                    <MoreVertical size={15} />
+                                  )}
+                                </button>
+
+                                {openMenuId === appt.id && (
+                                  <div className="absolute right-0 top-9 z-20 min-w-47 rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+                                    <button
+                                      type="button"
+                                      onClick={() => openFollowUpModal(appt)}
+                                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
+                                    >
+                                      <CalendarClock size={14} className="text-slate-400" />
+                                      Edit follow-up
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => markStatus(appt, "completed")}
+                                      disabled={isCancelled}
+                                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                    >
+                                      <CheckCircle size={14} className="text-slate-400" />
+                                      Mark completed
+                                    </button>
+                                    <button
+                                      type="button"
+                                      onClick={() => markStatus(appt, "no-show")}
+                                      disabled={isCancelled}
+                                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                    >
+                                      <UserRound size={14} className="text-slate-400" />
+                                      Mark as no-show
+                                    </button>
+                                    <div className="my-1 border-t border-slate-100" />
+                                    <button
+                                      type="button"
+                                      onClick={() => cancelAppointment(appt)}
+                                      disabled={isCancelled}
+                                      className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-red-600 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
+                                    >
+                                      <Ban size={14} />
+                                      Cancel appointment
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                {/* Pagination */}
+                <div className="flex items-center justify-between border-t border-slate-100 px-5 py-4">
+                  <p className="text-sm text-slate-500">
+                    Showing{" "}
+                    {Math.min((currentPage - 1) * PAGE_SIZE + 1, filteredAppointments.length)}
+                    {" to "}
+                    {Math.min(currentPage * PAGE_SIZE, filteredAppointments.length)}
+                    {" of "}
+                    {filteredAppointments.length} appointments
+                  </p>
+                  <div className="flex items-center gap-1">
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:opacity-40"
                     >
-                      <td className="px-5 py-4">
-                        <p className="font-semibold text-slate-950">
-                          #{appointment.appointment_no || appointment.id}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          {formatAppointmentDate(appointment.appointment_date)} · {appointment.appointment_time || "-"}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-400">
-                          {appointment.created_by || "WhatsApp"}
-                        </p>
-                      </td>
-                      <td className="px-5 py-4">
-                        <p className="font-medium text-slate-950">
-                          {appointment.patient_name || "Patient"}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          {appointment.phone_number || "-"}
-                        </p>
-                        <p className="mt-1 text-xs text-slate-400">
-                          {appointment.gender || "Gender not set"}
-                        </p>
-                      </td>
-                      <td className="px-5 py-4 text-slate-700">
-                        {appointment.doctor_name || "Doctor"}
-                      </td>
-                      <td className="max-w-xs px-5 py-4 text-slate-600">
-                        <span className="line-clamp-2">
-                          {appointment.problem === "WhatsApp booking"
-                            ? "Health issue not provided"
-                            : appointment.problem || "Health issue not provided"}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4">
-                        {appointment.follow_up_date ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
-                            <CalendarClock size={12} />
-                            {formatAppointmentDate(appointment.follow_up_date)}
+                      <ChevronLeft size={15} />
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1)
+                      .filter((p) =>
+                        p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1
+                      )
+                      .reduce((acc, p, idx, arr) => {
+                        if (idx > 0 && p - arr[idx - 1] > 1) acc.push("...");
+                        acc.push(p);
+                        return acc;
+                      }, [])
+                      .map((p, idx) =>
+                        p === "..." ? (
+                          <span
+                            key={`el-${idx}`}
+                            className="px-1 text-sm text-slate-400"
+                          >
+                            …
                           </span>
                         ) : (
-                          <span className="text-slate-400">—</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-4">
-                        <span className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${statusClass(appointment.status)}`}>
-                          {appointment.status || "Pending"}
-                        </span>
-                      </td>
-                      <td className="px-5 py-4">
-                        <div className="flex flex-col gap-1.5 sm:flex-row">
                           <button
+                            key={p}
                             type="button"
-                            onClick={() =>
-                              openFollowUpModal(
-                                appointment
-                              )
-                            }
-                            disabled={
-                              String(appointment.status || "").toLowerCase() === "cancelled"
-                            }
-                            className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 text-xs font-semibold text-amber-700 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-40"
+                            onClick={() => setCurrentPage(p)}
+                            className={`flex h-8 w-8 items-center justify-center rounded-lg border text-sm font-medium transition ${
+                              currentPage === p
+                                ? "border-teal-600 bg-teal-600 text-white"
+                                : "border-slate-200 text-slate-600 hover:bg-slate-50"
+                            }`}
                           >
-                            <CalendarClock size={13} />
-                            {appointment.follow_up_date ? "Edit follow-up" : "Set follow-up"}
+                            {p}
                           </button>
-                          <button
-                            type="button"
-                            onClick={() =>
-                              cancelAppointment(
-                                appointment
-                              )
-                            }
-                            disabled={
-                              cancellingId === appointment.id
-                              || String(appointment.status || "").toLowerCase() === "cancelled"
-                            }
-                            className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-red-100 bg-white px-3 text-xs font-semibold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-40"
-                          >
-                            {cancellingId === appointment.id ? (
-                              <Loader2
-                                size={13}
-                                className="animate-spin"
-                              />
-                            ) : (
-                              <Ban size={13} />
-                            )}
-                            Cancel
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                        )
+                      )}
+                    <button
+                      type="button"
+                      onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:opacity-40"
+                    >
+                      <ChevronRight size={15} />
+                    </button>
+                  </div>
+                </div>
+              </>
+            )}
+          </div>
         </section>
       )}
 
       {/* ─── Follow-ups tab ─── */}
       {activeTab === "followups" && (
-        <section className="mt-2 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-sm">
+        <section className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
           <div className="border-b border-slate-100 p-5">
             <div className="flex items-center gap-3">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-50 text-amber-700">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-50 text-amber-600">
                 <CalendarClock size={18} />
               </div>
               <div>
-                <h2 className="text-lg font-semibold text-slate-950">
-                  Tomorrow's follow-ups
-                </h2>
+                <h2 className="font-semibold text-slate-950">Tomorrow's follow-ups</h2>
                 <p className="mt-0.5 text-sm text-slate-500">
-                  Patients with a follow-up scheduled for tomorrow. Send each a WhatsApp reminder once to book.
+                  Patients with a follow-up scheduled for tomorrow. Send a WhatsApp reminder once to book.
                 </p>
               </div>
             </div>
           </div>
 
           {loading ? (
-            <div className="px-5 py-16 text-center text-sm text-slate-500">
-              <Loader2 className="mx-auto mb-3 animate-spin text-teal-600" />
+            <div className="flex items-center justify-center py-16 text-sm text-slate-500">
+              <Loader2 className="mr-2 animate-spin text-teal-600" size={18} />
               Loading...
             </div>
           ) : followUps.length === 0 ? (
-            <div className="px-5 py-16 text-center">
+            <div className="py-16 text-center">
               <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-slate-400">
                 <CalendarClock size={22} />
               </div>
-              <p className="text-sm font-medium text-slate-700">
-                No follow-ups due tomorrow.
-              </p>
+              <p className="text-sm font-medium text-slate-700">No follow-ups due tomorrow.</p>
               <p className="mt-1 text-sm text-slate-500">
                 Patients with a follow-up date set for tomorrow will appear here.
               </p>
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-215 text-left text-sm">
-                <thead className="bg-slate-50 text-slate-600">
+              <table className="w-full min-w-175 text-left text-sm">
+                <thead className="bg-slate-50">
                   <tr>
-                    <th className="px-5 py-3 font-semibold">Patient</th>
-                    <th className="px-5 py-3 font-semibold">Doctor</th>
-                    <th className="px-5 py-3 font-semibold">Original visit</th>
-                    <th className="px-5 py-3 font-semibold">Follow-up date</th>
-                    <th className="px-5 py-3 font-semibold">Due in</th>
-                    <th className="px-5 py-3 font-semibold">Action</th>
+                    {["Patient", "Doctor", "Original visit", "Follow-up date", "Due in", "Action"].map((h) => (
+                      <th
+                        key={h}
+                        className="px-5 py-3.5 text-xs font-semibold uppercase tracking-wide text-slate-500"
+                      >
+                        {h}
+                      </th>
+                    ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {followUps.map((appointment) => (
+                  {followUps.map((appt) => (
                     <tr
-                      key={appointment.id}
-                      className="border-t border-slate-100 transition hover:bg-slate-50/80"
+                      key={appt.id}
+                      className="border-t border-slate-100 transition hover:bg-slate-50/60"
                     >
                       <td className="px-5 py-4">
-                        <p className="font-medium text-slate-950">
-                          {appointment.patient_name || "Patient"}
+                        <p className="font-semibold text-slate-900">
+                          {appt.patient_name || "Patient"}
                         </p>
-                        <p className="mt-1 text-xs text-slate-500">
-                          {appointment.phone_number || "No phone"}
+                        <p className="mt-0.5 text-xs text-slate-400">
+                          {appt.phone_number || "No phone"}
                         </p>
                       </td>
                       <td className="px-5 py-4 text-slate-700">
-                        {appointment.doctor_name || "Doctor"}
-                      </td>
-                      <td className="px-5 py-4 text-slate-600">
-                        <p>{formatAppointmentDate(appointment.appointment_date)}</p>
-                        <p className="mt-1 text-xs text-slate-400">
-                          {appointment.appointment_time || ""}
-                        </p>
+                        {appt.doctor_name || "—"}
                       </td>
                       <td className="px-5 py-4">
-                        <p className="font-medium text-slate-950">
-                          {formatAppointmentDate(appointment.follow_up_date)}
+                        <p className="text-slate-700">
+                          {formatDate(appt.appointment_date)}
+                        </p>
+                        <p className="mt-0.5 text-xs text-slate-400">
+                          {appt.appointment_time || ""}
                         </p>
                       </td>
+                      <td className="px-5 py-4 font-medium text-slate-800">
+                        {formatDate(appt.follow_up_date)}
+                      </td>
                       <td className="px-5 py-4">
-                        <span className={`rounded-lg px-2.5 py-1 text-xs font-semibold ${urgencyClass(appointment.days_until_follow_up)}`}>
-                          {urgencyLabel(appointment.days_until_follow_up)}
+                        <span className={`rounded-md px-2.5 py-1 text-xs font-semibold ${
+                          appt.days_until_follow_up < 0
+                            ? "bg-red-50 text-red-700"
+                            : appt.days_until_follow_up <= 1
+                            ? "bg-orange-50 text-orange-700"
+                            : "bg-teal-50 text-teal-700"
+                        }`}>
+                          {appt.days_until_follow_up < 0
+                            ? `${Math.abs(appt.days_until_follow_up)}d overdue`
+                            : appt.days_until_follow_up === 0
+                            ? "Today"
+                            : appt.days_until_follow_up === 1
+                            ? "Tomorrow"
+                            : `In ${appt.days_until_follow_up} days`}
                         </span>
                       </td>
                       <td className="px-5 py-4">
-                        <div className="flex flex-col gap-1.5 sm:flex-row">
-                          {reminderSentIds.has(appointment.id) ? (
-                            <span className="inline-flex min-h-9 items-center gap-1.5 rounded-lg bg-teal-50 px-3 text-xs font-semibold text-teal-700">
+                        <div className="flex gap-2">
+                          {reminderSentIds.has(appt.id) ? (
+                            <span className="inline-flex items-center gap-1.5 rounded-lg bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-700">
                               <CheckCircle size={13} />
                               Reminder sent
                             </span>
                           ) : (
                             <button
                               type="button"
-                              onClick={() => sendReminder(appointment)}
-                              disabled={
-                                sendingReminderId === appointment.id
-                                || !appointment.phone_number
-                              }
-                              title={
-                                !appointment.phone_number
-                                  ? "No phone number on record"
-                                  : "Send WhatsApp reminder to book"
-                              }
-                              className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-700 transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-800 disabled:cursor-not-allowed disabled:opacity-40"
+                              onClick={() => sendReminder(appt)}
+                              disabled={sendingReminderId === appt.id || !appt.phone_number}
+                              title={!appt.phone_number ? "No phone number on record" : "Send WhatsApp reminder"}
+                              className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-teal-200 hover:bg-teal-50 hover:text-teal-800 disabled:cursor-not-allowed disabled:opacity-40"
                             >
-                              {sendingReminderId === appointment.id ? (
+                              {sendingReminderId === appt.id ? (
                                 <Loader2 size={13} className="animate-spin" />
                               ) : (
                                 <Bell size={13} />
@@ -1501,8 +1082,8 @@ export default function Appointments() {
                           )}
                           <button
                             type="button"
-                            onClick={() => openFollowUpModal(appointment)}
-                            className="inline-flex min-h-9 items-center justify-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 text-xs font-semibold text-slate-500 transition hover:border-slate-300 hover:bg-slate-50"
+                            onClick={() => openFollowUpModal(appt)}
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-500 transition hover:bg-slate-50"
                           >
                             <CalendarClock size={13} />
                             Edit date
@@ -1518,6 +1099,205 @@ export default function Appointments() {
         </section>
       )}
 
+      {/* ─── Create Appointment Modal ─── */}
+      {showCreateModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div
+            className="absolute inset-0 bg-slate-950/40"
+            onClick={() => setShowCreateModal(false)}
+          />
+          <div className="relative z-10 w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-xl">
+            <div className="flex items-center justify-between border-b border-slate-100 px-6 py-5">
+              <div>
+                <h2 className="text-base font-semibold text-slate-950">Create Appointment</h2>
+                <p className="mt-0.5 text-sm text-slate-500">
+                  Book a physical visit using available doctor slots.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowCreateModal(false)}
+                className="flex h-8 w-8 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="max-h-[80vh] overflow-y-auto p-6">
+              <form onSubmit={createManualAppointment} className="space-y-5">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <Field label="Doctor">
+                    <select
+                      value={manualForm.doctor_id || manualForm.doctor_name}
+                      onChange={(e) => updateManualForm("doctor_id", e.target.value)}
+                      disabled={doctorOptions.length <= 1}
+                      className={inputCls}
+                      required
+                    >
+                      {doctorOptions.length === 0 && (
+                        <option value="">No doctors configured</option>
+                      )}
+                      {doctorOptions.map((d) => (
+                        <option key={d.id} value={d.id}>{d.doctor_name}</option>
+                      ))}
+                    </select>
+                  </Field>
+
+                  <Field label="Date">
+                    <input
+                      type="date"
+                      value={manualForm.appointment_date}
+                      onChange={(e) => updateManualForm("appointment_date", e.target.value)}
+                      className={inputCls}
+                      required
+                    />
+                  </Field>
+
+                  <Field label="Patient name">
+                    <input
+                      type="text"
+                      placeholder="Patient name"
+                      value={manualForm.patient_name}
+                      onChange={(e) => updateManualForm("patient_name", e.target.value)}
+                      className={inputCls}
+                      required
+                    />
+                  </Field>
+
+                  <Field label="Phone">
+                    <input
+                      type="tel"
+                      placeholder="Phone number"
+                      value={manualForm.phone_number}
+                      onChange={(e) => updateManualForm("phone_number", e.target.value)}
+                      className={inputCls}
+                      required
+                    />
+                  </Field>
+
+                  <Field label="Age">
+                    <input
+                      type="text"
+                      placeholder="Age"
+                      value={manualForm.patient_age}
+                      onChange={(e) => updateManualForm("patient_age", e.target.value)}
+                      className={inputCls}
+                    />
+                  </Field>
+
+                  <Field label="Gender">
+                    <select
+                      value={manualForm.patient_gender}
+                      onChange={(e) => updateManualForm("patient_gender", e.target.value)}
+                      className={inputCls}
+                    >
+                      <option value="">Select gender</option>
+                      <option value="Male">Male</option>
+                      <option value="Female">Female</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </Field>
+
+                  <Field label="Health issue">
+                    <input
+                      type="text"
+                      placeholder="Health issue"
+                      value={manualForm.health_issue}
+                      onChange={(e) => updateManualForm("health_issue", e.target.value)}
+                      className={inputCls}
+                      required
+                    />
+                  </Field>
+
+                  <Field label="Follow-up date (optional)">
+                    <input
+                      type="date"
+                      value={manualForm.follow_up_date}
+                      min={todayStr}
+                      onChange={(e) => updateManualForm("follow_up_date", e.target.value)}
+                      className={inputCls}
+                    />
+                  </Field>
+                </div>
+
+                {/* Slots */}
+                <div>
+                  <div className="mb-2 flex items-center justify-between">
+                    <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+                      Available slots
+                    </span>
+                    <button
+                      type="button"
+                      onClick={loadManualSlots}
+                      disabled={slotLoading || !manualForm.doctor_name || !manualForm.appointment_date}
+                      className="inline-flex items-center gap-1.5 rounded-lg border border-teal-100 bg-teal-50 px-3 py-1.5 text-xs font-semibold text-teal-700 transition hover:bg-teal-100 disabled:opacity-50"
+                    >
+                      {slotLoading ? (
+                        <Loader2 size={12} className="animate-spin" />
+                      ) : (
+                        <RefreshCw size={12} />
+                      )}
+                      Find slots
+                    </button>
+                  </div>
+                  <div className="min-h-16 rounded-lg border border-slate-200 bg-slate-50 p-3">
+                    {slotLoading ? (
+                      <div className="flex min-h-12 items-center justify-center text-sm text-slate-400">
+                        <Loader2 size={15} className="mr-2 animate-spin text-teal-600" />
+                        Checking availability…
+                      </div>
+                    ) : manualSlots.length === 0 ? (
+                      <p className="flex min-h-12 items-center justify-center text-sm text-slate-400">
+                        Choose a doctor and date, then click Find slots.
+                      </p>
+                    ) : (
+                      <div className="flex flex-wrap gap-2">
+                        {manualSlots.map((slot) => (
+                          <button
+                            key={slot}
+                            type="button"
+                            onClick={() => updateManualForm("appointment_time", slot)}
+                            className={`min-h-9 rounded-lg border px-3 text-sm font-semibold transition ${
+                              manualForm.appointment_time === slot
+                                ? "border-teal-700 bg-teal-700 text-white"
+                                : "border-slate-200 bg-white text-slate-700 hover:border-teal-200 hover:bg-teal-50"
+                            }`}
+                          >
+                            {slot}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex gap-3 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateModal(false)}
+                    className="flex-1 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={creating || !manualForm.appointment_time}
+                    className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-teal-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {creating ? (
+                      <Loader2 size={15} className="animate-spin" />
+                    ) : (
+                      <Plus size={15} />
+                    )}
+                    Book visit
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* ─── Follow-up modal ─── */}
       {showFollowUpModal && (
         <div className="fixed inset-0 z-50 flex justify-end">
@@ -1526,12 +1306,9 @@ export default function Appointments() {
             onClick={closeFollowUpModal}
           />
           <div className="relative z-10 flex h-full w-full max-w-md flex-col bg-white shadow-xl">
-
             <div className="flex items-start justify-between border-b border-slate-100 px-6 py-5">
               <div>
-                <h2 className="text-base font-semibold text-slate-950">
-                  Set follow-up date
-                </h2>
+                <h2 className="text-base font-semibold text-slate-950">Set follow-up date</h2>
                 <p className="mt-0.5 text-sm text-slate-500">
                   Patient will be notified via WhatsApp to book before this date.
                 </p>
@@ -1539,15 +1316,13 @@ export default function Appointments() {
               <button
                 type="button"
                 onClick={closeFollowUpModal}
-                className="ml-4 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+                className="ml-4 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600"
               >
                 <X size={18} />
               </button>
             </div>
 
             <div className="flex-1 overflow-y-auto p-6">
-
-              {/* Appointment context */}
               <div className="rounded-lg border border-slate-100 bg-slate-50 p-4">
                 <p className="text-sm font-semibold text-slate-950">
                   {selectedForFollowUp?.patient_name}
@@ -1558,7 +1333,7 @@ export default function Appointments() {
                   #{selectedForFollowUp?.appointment_no || selectedForFollowUp?.id}
                 </p>
                 <p className="mt-1 text-xs text-slate-500">
-                  {formatAppointmentDate(selectedForFollowUp?.appointment_date)}
+                  {formatDate(selectedForFollowUp?.appointment_date)}
                   {selectedForFollowUp?.appointment_time
                     ? ` · ${selectedForFollowUp.appointment_time}`
                     : ""}
@@ -1568,26 +1343,16 @@ export default function Appointments() {
                     WhatsApp → {selectedForFollowUp.phone_number}
                   </p>
                 )}
-                {!selectedForFollowUp?.phone_number && (
-                  <p className="mt-2 text-xs text-orange-600">
-                    No phone number on record — notification will not be sent.
-                  </p>
-                )}
               </div>
 
-              <form
-                onSubmit={saveFollowUp}
-                className="mt-5 space-y-5"
-              >
+              <form onSubmit={saveFollowUp} className="mt-5 space-y-5">
                 <Field label="Follow-up date">
                   <input
                     type="date"
                     value={followUpDate}
-                    min={today}
-                    onChange={(event) =>
-                      setFollowUpDate(event.target.value)
-                    }
-                    className={inputClass}
+                    min={todayStr}
+                    onChange={(e) => setFollowUpDate(e.target.value)}
+                    className={inputCls}
                     required
                     autoFocus
                   />
@@ -1597,8 +1362,8 @@ export default function Appointments() {
                   <p className="rounded-lg border border-teal-100 bg-teal-50 px-4 py-3 text-xs leading-5 text-teal-800">
                     A WhatsApp message will be sent asking{" "}
                     <strong>{selectedForFollowUp?.patient_name}</strong> to book
-                    a slot before{" "}
-                    <strong>{formatAppointmentDate(followUpDate)}</strong>.
+                    before{" "}
+                    <strong>{formatDate(followUpDate)}</strong>.
                   </p>
                 )}
 
@@ -1606,14 +1371,14 @@ export default function Appointments() {
                   <button
                     type="button"
                     onClick={closeFollowUpModal}
-                    className="flex-1 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
+                    className="flex-1 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50"
                   >
                     Cancel
                   </button>
                   <button
                     type="submit"
                     disabled={savingFollowUp || !followUpDate}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
+                    className="flex flex-1 items-center justify-center gap-2 rounded-lg bg-slate-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     {savingFollowUp ? (
                       <Loader2 size={15} className="animate-spin" />
@@ -1628,6 +1393,15 @@ export default function Appointments() {
           </div>
         </div>
       )}
+
+      {/* Overlay to close three-dot menu on outside click */}
+      {openMenuId && (
+        <div
+          className="fixed inset-0 z-10"
+          onClick={() => setOpenMenuId(null)}
+        />
+      )}
+
     </Layout>
   );
 }
