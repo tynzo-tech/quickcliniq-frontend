@@ -1,9 +1,38 @@
+import { Component } from "react";
+
 import {
   BrowserRouter,
   Routes,
   Route,
   Navigate
 } from "react-router-dom";
+
+class ErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-slate-50 p-8 text-center">
+          <p className="text-lg font-semibold text-slate-800">Something went wrong</p>
+          <p className="max-w-md text-sm text-slate-500">{String(this.state.error)}</p>
+          <button
+            onClick={() => { this.setState({ error: null }); window.location.reload(); }}
+            className="rounded-lg bg-teal-700 px-4 py-2 text-sm font-semibold text-white hover:bg-teal-800"
+          >
+            Reload page
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 import QuickCliniqHome from "./pages/QuickCliniqHome";
 import Login from "./pages/Login";
@@ -34,7 +63,7 @@ function App() {
   return (
 
     <BrowserRouter>
-
+      <ErrorBoundary>
       <Routes>
 
         {/* HOME */}
@@ -216,7 +245,7 @@ function App() {
         />
 
       </Routes>
-
+      </ErrorBoundary>
     </BrowserRouter>
   );
 }
