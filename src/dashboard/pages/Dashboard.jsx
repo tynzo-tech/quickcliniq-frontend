@@ -10,16 +10,15 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 
 import {
+  Ban,
   Calendar,
   CalendarCheck,
-  ChevronRight,
+  CheckCircle,
   Clock,
-  ClipboardList,
   Loader2,
   Moon,
   Plus,
   Search,
-  Stethoscope,
   Sun,
   Sunset,
   UserRound,
@@ -380,26 +379,20 @@ export default function Dashboard() {
     (a) => a.created_by === "Dashboard"
   ).length;
 
-  // Recent patients (last 4 by created_at)
-  const recentPatients = useMemo(() =>
-    [...patients]
-      .sort((a, b) => String(b.created_at || "").localeCompare(String(a.created_at || "")))
-      .slice(0, 4),
-    [patients]
-  );
-
-  // Reminders
-  const followUpCount = appointments.filter(
-    (a) => a.follow_up_date && a.follow_up_date >= todayIso()
-  ).length;
-
   const noShowToday = todayAppointments.filter((a) => a.status === "no-show").length;
 
-  // Chart stat totals (all appointments in loaded data, not filtered by doctor for overview)
-  const chartTotal = allAppointments.filter((a) => a.status !== "cancelled").length;
-  const chartCompleted = allAppointments.filter((a) => a.status === "completed").length;
-  const chartCancelled = allAppointments.filter((a) => a.status === "cancelled").length;
-  const chartNoShow = allAppointments.filter((a) => a.status === "no-show").length;
+  const tomorrowStr = (() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    return d.toISOString().slice(0, 10);
+  })();
+
+  const tomorrowAppointments = useMemo(() =>
+    appointments
+      .filter((a) => a.appointment_date === tomorrowStr && a.status !== "cancelled")
+      .sort((a, b) => String(a.appointment_time || "").localeCompare(String(b.appointment_time || ""))),
+    [appointments, tomorrowStr]
+  );
 
   const [greetText, GreetIcon] = greeting();
   const doctorDisplayName =
@@ -467,6 +460,22 @@ export default function Dashboard() {
     }
   };
 
+
+  const [markingId, setMarkingId] = useState(null);
+
+  const markStatus = useCallback(async (apptId, newStatus) => {
+    try {
+      setMarkingId(apptId);
+      await axios.patch(apiUrl(`/appointments/${apptId}/status`), null, {
+        params: { clinic_id: clinicId, status: newStatus }
+      });
+      await loadDashboard();
+    } catch (e) {
+      setError(e.response?.data?.detail || "Failed to update status");
+    } finally {
+      setMarkingId(null);
+    }
+  }, [clinicId, loadDashboard]);
 
   // ─── render ───────────────────────────────────────
 
@@ -541,164 +550,150 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* ── Stat cards ── */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatCard
-          icon={CalendarCheck}
-          label="Today's Appointments"
-          value={todayAppointments.length}
-          helper={`${waitingCount} waiting • ${confirmedCount} confirmed`}
-          helperColor="text-teal-700"
-          iconBg="bg-teal-50"
-          iconColor="text-teal-600"
-        />
-        <StatCard
-          icon={Clock}
-          label="Upcoming"
-          value={upcomingAppointments.length}
-          helper={nextUpcoming ? `Next: ${nextUpcoming.appointment_time}` : "No upcoming"}
-          helperColor="text-violet-700"
-          iconBg="bg-violet-50"
-          iconColor="text-violet-600"
-        />
-        <StatCard
-          icon={Users}
-          label="New Patients"
-          value={newPatientsThisWeek}
-          helper="This week"
-          helperColor="text-blue-700"
-          iconBg="bg-blue-50"
-          iconColor="text-blue-600"
-        />
-        <StatCard
-          icon={ClipboardList}
-          label="Physical Visits"
-          value={physicalVisits}
-          helper="Walk-in records"
-          helperColor="text-orange-600"
-          iconBg="bg-orange-50"
-          iconColor="text-orange-500"
-        />
+      {/* ── 4 stat cards ── */}
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard icon={CalendarCheck} label="Today" value={todayAppointments.length}
+          helper="Scheduled" helperColor="text-slate-500" iconBg="bg-teal-50" iconColor="text-teal-600" />
+        <StatCard icon={Clock} label="Waiting" value={waitingCount}
+          helper="Yet to be seen" helperColor="text-amber-600" iconBg="bg-amber-50" iconColor="text-amber-600" />
+        <StatCard icon={CheckCircle} label="Completed" value={confirmedCount}
+          helper="Done today" helperColor="text-green-600" iconBg="bg-green-50" iconColor="text-green-600" />
+        <StatCard icon={Ban} label="No-show" value={noShowToday}
+          helper="Didn't arrive" helperColor="text-red-500" iconBg="bg-red-50" iconColor="text-red-500" />
       </div>
 
-      {/* ── Main 2-col grid ── */}
-      <div className="mt-4 grid gap-4 xl:grid-cols-[1.1fr_1fr]">
-
-        {/* Left: Today's Appointments */}
-        <Card title="Today's Appointments" linkTo="/appointments">
-          {todayAppointments.length === 0 ? (
-            <div className="rounded-lg border border-dashed border-slate-200 py-10 text-center text-sm text-slate-400">
-              No appointments scheduled for today.
-            </div>
-          ) : (
-            <div className="divide-y divide-slate-100 rounded-lg border border-slate-100">
-              {todayAppointments.slice(0, 5).map((appt) => {
-                const { label, cls } = statusLabel(appt.status);
-                return (
-                  <div
-                    key={appt.id}
-                    className="grid items-center gap-3 px-4 py-3"
-                    style={{ gridTemplateColumns: "76px auto 1fr auto" }}
-                  >
-                    <p className="text-sm font-semibold text-slate-700">
-                      {appt.appointment_time}
-                    </p>
-                    <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold ${avatarColor(appt.patient_name)}`}>
-                      {initials(appt.patient_name)}
-                    </div>
-                    <div className="min-w-0">
-                      <p className="truncate font-semibold text-slate-950">
-                        {appt.patient_name}
-                      </p>
-                      <p className="truncate text-xs text-slate-500">
-                        {appt.problem || appt.health_issue || "Consultation"}
-                      </p>
-                    </div>
-                    <span className={`shrink-0 rounded-full px-2.5 py-0.5 text-xs font-semibold ${cls}`}>
-                      {label}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </Card>
-
-        {/* Right: Appointments Overview + Reminders */}
-        <div className="flex flex-col gap-4">
-
-          {/* Appointments Overview chart */}
-          <Card title="Appointments Overview">
-            <WeekChart appointments={allAppointments} />
-            <div className="mt-3 grid grid-cols-4 gap-2">
-              {[
-                ["Total", chartTotal, "bg-teal-500"],
-                ["Completed", chartCompleted, "bg-green-500"],
-                ["Cancelled", chartCancelled, "bg-red-500"],
-                ["No-show", chartNoShow, "bg-amber-500"]
-              ].map(([label, val, dot]) => (
-                <div key={label} className="rounded-lg border border-slate-100 bg-slate-50 p-3 text-center">
-                  <p className="flex items-center justify-center gap-1.5 text-xs text-slate-500">
-                    <span className={`h-2 w-2 rounded-full ${dot}`} />
-                    {label}
-                  </p>
-                  <p className="mt-1 text-xl font-bold text-slate-950">{val}</p>
-                </div>
-              ))}
-            </div>
-          </Card>
-
-          {/* Reminders & Actions */}
-          <Card title="Reminders & Actions">
-            <div className="space-y-2">
-              {[
-                {
-                  icon: Calendar,
-                  label: `${followUpCount} upcoming follow-up${followUpCount !== 1 ? "s" : ""}`,
-                  to: "/appointments",
-                  color: "text-teal-600",
-                  bg: "bg-teal-50"
-                },
-                {
-                  icon: UserRound,
-                  label: `${noShowToday} patient${noShowToday !== 1 ? "s" : ""} marked no-show`,
-                  to: "/appointments",
-                  color: "text-red-600",
-                  bg: "bg-red-50"
-                },
-                {
-                  icon: Stethoscope,
-                  label: "Update clinic profile",
-                  to: "/profile",
-                  color: "text-violet-600",
-                  bg: "bg-violet-50"
-                },
-                {
-                  icon: Users,
-                  label: `${doctors.length} active doctor${doctors.length !== 1 ? "s" : ""}`,
-                  to: "/doctors",
-                  color: "text-blue-600",
-                  bg: "bg-blue-50"
-                }
-              ].map(({ icon: Icon, label, to, color, bg }) => (
-                <Link
-                  key={label}
-                  to={to}
-                  className="flex items-center justify-between gap-3 rounded-lg border border-slate-100 px-3 py-3 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${bg}`}>
-                      <Icon size={15} className={color} />
-                    </div>
-                    {label}
-                  </div>
-                  <ChevronRight size={15} className="shrink-0 text-slate-400" />
-                </Link>
-              ))}
-            </div>
-          </Card>
+      {/* ── Today's appointments (full list) ── */}
+      <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+        <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+          <div className="flex items-center gap-3">
+            <h2 className="font-semibold text-slate-950">Today's Appointments</h2>
+            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+              {todayAppointments.length}
+            </span>
+          </div>
+          <Link to="/appointments" className="text-xs font-semibold text-teal-600 hover:text-teal-700">
+            View all →
+          </Link>
         </div>
+
+        {todayAppointments.length === 0 ? (
+          <div className="py-16 text-center">
+            <CalendarCheck size={28} className="mx-auto mb-3 text-slate-200" />
+            <p className="text-sm text-slate-400">No appointments scheduled for today.</p>
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-100">
+            {todayAppointments.map((appt) => {
+              const isBooked = String(appt.status || "").toLowerCase().includes("book");
+              const isCompleted = appt.status === "completed";
+              const isNoShow = appt.status === "no-show";
+              const isMarking = markingId === appt.id;
+
+              return (
+                <div key={appt.id} className="flex items-center gap-3 px-5 py-3">
+                  {/* Time */}
+                  <div className="w-18 shrink-0 text-sm font-bold text-slate-800">
+                    {appt.appointment_time || "—"}
+                  </div>
+
+                  {/* Avatar */}
+                  <div className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold ${avatarColor(appt.patient_name)}`}>
+                    {initials(appt.patient_name)}
+                  </div>
+
+                  {/* Patient info */}
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-semibold text-slate-950">
+                      {appt.patient_name || "Patient"}
+                    </p>
+                    <p className="truncate text-xs text-slate-400">
+                      {appt.problem && appt.problem !== "WhatsApp booking" ? appt.problem : "Consultation"}
+                      {appt.patient_age ? ` · ${appt.patient_age}y` : ""}
+                      {appt.gender ? ` · ${appt.gender}` : ""}
+                    </p>
+                  </div>
+
+                  {/* Doctor */}
+                  <p className="hidden shrink-0 text-xs text-slate-500 sm:block">
+                    {appt.doctor_name || ""}
+                  </p>
+
+                  {/* Actions / status */}
+                  <div className="flex shrink-0 items-center gap-2">
+                    {isMarking ? (
+                      <Loader2 size={16} className="animate-spin text-slate-400" />
+                    ) : isBooked ? (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() => markStatus(appt.id, "completed")}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-teal-600 px-3 text-xs font-semibold text-white transition hover:bg-teal-700"
+                        >
+                          <CheckCircle size={12} />
+                          Done
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => markStatus(appt.id, "no-show")}
+                          className="inline-flex h-8 items-center rounded-lg border border-slate-200 px-3 text-xs font-semibold text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"
+                        >
+                          No-show
+                        </button>
+                      </>
+                    ) : isCompleted ? (
+                      <span className="rounded-full bg-teal-50 px-2.5 py-1 text-xs font-semibold text-teal-700">
+                        Completed
+                      </span>
+                    ) : isNoShow ? (
+                      <span className="rounded-full bg-red-50 px-2.5 py-1 text-xs font-semibold text-red-600">
+                        No-show
+                      </span>
+                    ) : (
+                      <span className="rounded-full bg-slate-100 px-2.5 py-1 text-xs font-semibold text-slate-500">
+                        Cancelled
+                      </span>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
+
+      {/* ── Tomorrow preview ── */}
+      {tomorrowAppointments.length > 0 && (
+        <div className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-sm">
+          <div className="flex items-center justify-between border-b border-slate-100 px-5 py-3.5">
+            <div className="flex items-center gap-3">
+              <h2 className="font-semibold text-slate-950">Tomorrow</h2>
+              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">
+                {tomorrowAppointments.length}
+              </span>
+              <span className="text-xs text-slate-400">{formatDate(tomorrowStr)}</span>
+            </div>
+          </div>
+          <div className="divide-y divide-slate-100">
+            {tomorrowAppointments.map((appt) => (
+              <div key={appt.id} className="flex items-center gap-3 px-5 py-3">
+                <div className="w-18 shrink-0 text-sm font-semibold text-slate-600">
+                  {appt.appointment_time || "—"}
+                </div>
+                <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-bold ${avatarColor(appt.patient_name)}`}>
+                  {initials(appt.patient_name)}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-slate-900">{appt.patient_name}</p>
+                  <p className="truncate text-xs text-slate-400">
+                    {appt.problem && appt.problem !== "WhatsApp booking" ? appt.problem : "Consultation"}
+                  </p>
+                </div>
+                <p className="hidden shrink-0 text-xs text-slate-400 sm:block">{appt.doctor_name}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
 
 
