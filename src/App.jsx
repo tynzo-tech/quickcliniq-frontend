@@ -10,7 +10,7 @@ import Login from "./pages/Login";
 import Privacy from "./pages/Privacy";
 import ChangePassword from "./pages/ChangePassword";
 import Appearance from "./pages/Appearance";
-import Dashboard from "./pages/Dashboard";
+import Dashboard from "./dashboard/pages/Dashboard";
 import Doctors from "./doctors/pages/Doctors";
 import ClinicProfile from "./clinic/pages/ClinicProfile";
 import Security from "./pages/Security";
