@@ -112,6 +112,10 @@ export default function Login() {
 
       localStorage.setItem("login_identifier", u);
 
+      if (data.token) {
+        localStorage.setItem("auth_token", data.token);
+      }
+
       if (data.clinic_phone_number) {
         localStorage.setItem("phone_number", data.clinic_phone_number);
       }

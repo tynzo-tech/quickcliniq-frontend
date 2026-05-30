@@ -29,6 +29,7 @@ import {
 import { useNavigate } from "react-router-dom";
 
 import Layout from "../../components/Layout";
+import Pagination from "../../components/Pagination";
 
 import { apiUrl } from "../../config/api";
 
@@ -604,7 +605,10 @@ export default function Patients() {
                             <div className="absolute right-0 top-9 z-20 min-w-44 rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
                               <button
                                 type="button"
-                                onClick={() => setOpenMenuId(null)}
+                                onClick={() => {
+                                  setOpenMenuId(null);
+                                  navigate(`/patients/${patient.id}`);
+                                }}
                                 className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
                               >
                                 <UserRound size={14} className="text-slate-400" />
@@ -648,64 +652,15 @@ export default function Patients() {
               </table>
             </div>
 
-            {/* Pagination footer */}
-            <div className="flex items-center justify-between border-t border-slate-100 px-5 py-4">
-              <div className="flex items-center gap-2 text-sm text-slate-500">
-                <span>Rows per page:</span>
-                <select
-                  value={pageSize}
-                  onChange={(e) => setPageSize(Number(e.target.value))}
-                  className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-sm text-slate-700 outline-none focus:border-teal-500"
-                >
-                  {[10, 25, 50].map((n) => (
-                    <option key={n} value={n}>{n}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-center gap-1">
-                <button
-                  type="button"
-                  onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-                  disabled={currentPage === 1}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:opacity-40"
-                >
-                  <ChevronLeft size={15} />
-                </button>
-                {Array.from({ length: totalPages }, (_, i) => i + 1)
-                  .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
-                  .reduce((acc, p, idx, arr) => {
-                    if (idx > 0 && p - arr[idx - 1] > 1) acc.push("...");
-                    acc.push(p);
-                    return acc;
-                  }, [])
-                  .map((p, idx) =>
-                    p === "..." ? (
-                      <span key={`el-${idx}`} className="px-1 text-sm text-slate-400">…</span>
-                    ) : (
-                      <button
-                        key={p}
-                        type="button"
-                        onClick={() => setCurrentPage(p)}
-                        className={`flex h-8 w-8 items-center justify-center rounded-lg border text-sm font-medium transition ${
-                          currentPage === p
-                            ? "border-teal-600 bg-teal-600 text-white"
-                            : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                        }`}
-                      >
-                        {p}
-                      </button>
-                    )
-                  )}
-                <button
-                  type="button"
-                  onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-                  disabled={currentPage === totalPages}
-                  className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:opacity-40"
-                >
-                  <ChevronRight size={15} />
-                </button>
-              </div>
-            </div>
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              totalItems={filteredPatients.length}
+              pageSize={pageSize}
+              onPageChange={setCurrentPage}
+              onPageSizeChange={setPageSize}
+              itemLabel="patients"
+            />
           </>
         )}
       </section>

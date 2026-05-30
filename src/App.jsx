@@ -48,6 +48,7 @@ import VerifyOtp from "./pages/VerifyOtp";
 import ShiftManagement from "./slots/pages/ShiftManagement";
 import Appointments from "./appointments/pages/Appointments";
 import Patients from "./patients/pages/Patients";
+import PatientDetail from "./patients/pages/PatientDetail";
 
 import ProtectedRoute from "./components/ProtectedRoute";
 
@@ -141,9 +142,16 @@ function App() {
         path="/patients"
         element={
           <ProtectedRoute>
-
             <Patients />
+          </ProtectedRoute>
+        }
+      />
 
+        <Route
+        path="/patients/:patientId"
+        element={
+          <ProtectedRoute>
+            <PatientDetail />
           </ProtectedRoute>
         }
       />

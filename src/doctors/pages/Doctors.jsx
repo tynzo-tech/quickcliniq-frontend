@@ -32,6 +32,7 @@ import {
 } from "lucide-react";
 
 import Layout from "../../components/Layout";
+import Pagination from "../../components/Pagination";
 
 import { apiUrl } from "../../config/api";
 
@@ -732,65 +733,15 @@ export default function Doctors() {
           </div>
         )}
 
-        {/* Footer: rows per page + pagination */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-3">
-          <div className="flex items-center gap-2 text-sm text-slate-600">
-            <span>Rows per page:</span>
-            <div className="relative">
-              <select
-                value={pageSize}
-                onChange={(e) => setPageSize(Number(e.target.value))}
-                className="appearance-none rounded-lg border border-slate-200 py-1 pl-3 pr-7 text-sm outline-none focus:border-teal-500"
-              >
-                {[10, 25, 50].map((n) => (
-                  <option key={n} value={n}>{n}</option>
-                ))}
-              </select>
-              <ChevronDown
-                size={12}
-                className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-slate-400"
-              />
-            </div>
-          </div>
-
-          <div className="flex items-center gap-1.5">
-            <button
-              type="button"
-              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-              disabled={safePage <= 1}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:opacity-40"
-            >
-              <ChevronLeft size={15} />
-            </button>
-            {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
-              <button
-                key={p}
-                type="button"
-                onClick={() => setCurrentPage(p)}
-                className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border text-sm font-medium transition ${
-                  p === safePage
-                    ? "border-teal-600 bg-teal-600 text-white"
-                    : "border-slate-200 text-slate-600 hover:bg-slate-50"
-                }`}
-              >
-                {p}
-              </button>
-            ))}
-            <button
-              type="button"
-              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
-              disabled={safePage >= totalPages}
-              className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 text-slate-500 transition hover:bg-slate-50 disabled:opacity-40"
-            >
-              <ChevronRight size={15} />
-            </button>
-            <span className="ml-1 text-sm text-slate-500">
-              {filtered.length === 0
-                ? "0 of 0"
-                : `${(safePage - 1) * pageSize + 1}–${Math.min(safePage * pageSize, filtered.length)} of ${filtered.length}`}
-            </span>
-          </div>
-        </div>
+        <Pagination
+          currentPage={safePage}
+          totalPages={totalPages}
+          totalItems={filtered.length}
+          pageSize={pageSize}
+          onPageChange={setCurrentPage}
+          onPageSizeChange={setPageSize}
+          itemLabel="doctors"
+        />
 
         {/* Info note */}
         <div className="border-t border-slate-100 px-5 py-3">

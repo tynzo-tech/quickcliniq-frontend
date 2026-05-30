@@ -164,9 +164,7 @@ export default function Layout({
   }, []);
 
   const handleLogout = () => {
-
     localStorage.clear();
-
     navigate("/login");
   };
 
@@ -379,7 +377,7 @@ export default function Layout({
           </header>
 
           <main className="min-w-0 flex-1 px-3 py-3 sm:px-4 lg:px-4">
-            <div className="mx-auto max-w-[1080px]">
+            <div className="mx-auto max-w-270">
               {(title || subtitle || actions) && (
                 <div className="mb-3 flex flex-col gap-3 rounded-lg border border-slate-200/80 bg-white/90 px-4 py-3 shadow-sm shadow-slate-950/5 backdrop-blur-xl sm:flex-row sm:items-end sm:justify-between">
                   <div>
