@@ -207,7 +207,7 @@ export default function Appointments() {
 
     } catch (e) {
 
-      setError(e.response?.data?.detail || "Failed to load appointments");
+      const d0 = e.response?.data?.detail; setError(typeof d0 === "string" ? d0 : d0?.message || "Failed to load appointments");
 
     } finally {
 
@@ -414,7 +414,7 @@ export default function Appointments() {
 
     } catch (e) {
 
-      setError(e.response?.data?.detail || "Failed to load slots");
+      const d1 = e.response?.data?.detail; setError(typeof d1 === "string" ? d1 : d1?.message || "Failed to load slots");
 
     } finally {
 
@@ -475,7 +475,7 @@ export default function Appointments() {
 
     } catch (e) {
 
-      setError(e.response?.data?.detail || "Failed to create appointment");
+      const d2 = e.response?.data?.detail; setError(typeof d2 === "string" ? d2 : d2?.message || "Failed to create appointment");
 
     } finally {
 
@@ -518,7 +518,7 @@ export default function Appointments() {
 
     } catch (e) {
 
-      setError(e.response?.data?.detail || "Failed to set follow-up date");
+      const d3 = e.response?.data?.detail; setError(typeof d3 === "string" ? d3 : d3?.message || "Failed to set follow-up date");
 
     } finally {
 
@@ -546,7 +546,7 @@ export default function Appointments() {
 
     } catch (e) {
 
-      setError(e.response?.data?.detail || "Failed to cancel appointment");
+      const d4 = e.response?.data?.detail; setError(typeof d4 === "string" ? d4 : d4?.message || "Failed to cancel appointment");
 
     } finally {
 
@@ -573,7 +573,7 @@ export default function Appointments() {
 
     } catch (e) {
 
-      setError(e.response?.data?.detail || `Failed to mark as ${status}`);
+      const d5 = e.response?.data?.detail; setError(typeof d5 === "string" ? d5 : d5?.message || `Failed to mark as ${status}`);
 
     } finally {
 
@@ -600,7 +600,12 @@ export default function Appointments() {
 
     } catch (e) {
 
-      setError(e.response?.data?.detail || "Failed to send reminder");
+      const detail = e.response?.data?.detail;
+      setError(
+        typeof detail === "string"
+          ? detail
+          : detail?.message || "Failed to send reminder"
+      );
 
     } finally {
 
