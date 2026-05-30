@@ -995,7 +995,7 @@ export default function Appointments() {
                       </td>
                       <td className="px-5 py-4">
                         <div className="flex gap-2">
-                          {reminderSentIds.has(appt.id) ? (
+                          {appt.reminder_sent || reminderSentIds.has(appt.id) ? (
                             <span className="inline-flex items-center gap-1.5 rounded-lg bg-teal-50 px-3 py-2 text-xs font-semibold text-teal-700">
                               <CheckCircle size={13} />
                               Reminder sent
